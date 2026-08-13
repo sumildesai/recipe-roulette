@@ -28,10 +28,17 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Refresh catalog from official channels
-        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: npm run catalog:generate
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      - name: Verify refreshed catalog
+        run: |
+          node -e "
+            const catalog = require('./public/recipes.json');
+            if (catalog.source !== 'youtube') throw new Error('Catalog was not refreshed from YouTube');
+            if (catalog.recipes.length <= 5) throw new Error('Refreshed catalog unexpectedly contains five or fewer recipes');
+            console.log('Verified refreshed catalog with ' + catalog.recipes.length + ' recipes.');
+          "
       - run: npm test
       - run: npm run lint
       - run: npm run typecheck
