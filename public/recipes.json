@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "source": "seed",
+  "updatedThrough": "2026-08-12T13:06:26.000Z",
+  "sourceChannels": [
+    {
+      "id": "UCe2JAC5FUfbxLCfAvBWmNJA",
+      "name": "Your Food Lab"
+    },
+    {
+      "id": "UCEHCDn_BBnk3uTK1M64ptyw",
+      "name": "Ranveer Brar"
+    }
+  ],
+  "recipes": [
+    {
+      "id": "d6EX90ftdFY",
+      "videoId": "d6EX90ftdFY",
+      "title": "Eggless Bhurji Recipe | Besan Ki Bhurji",
+      "description": "An easy besan bhurji for breakfast, lunch, or dinner.",
+      "channelId": "UCe2JAC5FUfbxLCfAvBWmNJA",
+      "channelName": "Your Food Lab",
+      "publishedAt": "2026-08-12T13:06:26.000Z",
+      "thumbnailUrl": "https://i.ytimg.com/vi/d6EX90ftdFY/hqdefault.jpg",
+      "videoUrl": "https://www.youtube.com/watch?v=d6EX90ftdFY",
+      "durationSeconds": 500,
+      "cookingTimeMinutes": 20,
+      "mealTypes": [
+        "breakfast",
+        "lunch",
+        "dinner"
+      ],
+      "cuisine": "Indian",
+      "vegetarian": true
+    },
+    {
+      "id": "zYAk_iqvdKE",
+      "videoId": "zYAk_iqvdKE",
+      "title": "Paneer Pepper Fry | Quick & Easy Starter Recipe",
+      "description": "A simple paneer starter.",
+      "channelId": "UCe2JAC5FUfbxLCfAvBWmNJA",
+      "channelName": "Your Food Lab",
+      "publishedAt": "2026-08-11T13:00:21.000Z",
+      "thumbnailUrl": "https://i.ytimg.com/vi/zYAk_iqvdKE/hqdefault.jpg",
+      "videoUrl": "https://www.youtube.com/watch?v=zYAk_iqvdKE",
+      "durationSeconds": 59,
+      "cookingTimeMinutes": null,
+      "mealTypes": [
+        "snack"
+      ],
+      "cuisine": "Indian",
+      "vegetarian": true
+    },
+    {
+      "id": "RbOUkA5aO_4",
+      "videoId": "RbOUkA5aO_4",
+      "title": "Tandoori Paneer Bowl with Thecha Rice",
+      "description": "Smoky paneer with spicy thecha rice.",
+      "channelId": "UCe2JAC5FUfbxLCfAvBWmNJA",
+      "channelName": "Your Food Lab",
+      "publishedAt": "2026-08-11T07:00:33.000Z",
+      "thumbnailUrl": "https://i.ytimg.com/vi/RbOUkA5aO_4/hqdefault.jpg",
+      "videoUrl": "https://www.youtube.com/watch?v=RbOUkA5aO_4",
+      "durationSeconds": 59,
+      "cookingTimeMinutes": null,
+      "mealTypes": [
+        "lunch",
+        "dinner"
+      ],
+      "cuisine": "Indian",
+      "vegetarian": true
+    },
+    {
+      "id": "BxNZBf6qVlE",
+      "videoId": "BxNZBf6qVlE",
+      "title": "Idli Kofta Curry",
+      "description": "A creative idli kofta curry.",
+      "channelId": "UCEHCDn_BBnk3uTK1M64ptyw",
+      "channelName": "Ranveer Brar",
+      "publishedAt": "2026-08-11T08:30:20.000Z",
+      "thumbnailUrl": "https://i.ytimg.com/vi/BxNZBf6qVlE/hqdefault.jpg",
+      "videoUrl": "https://www.youtube.com/watch?v=BxNZBf6qVlE",
+      "durationSeconds": 600,
+      "cookingTimeMinutes": 25,
+      "mealTypes": [
+        "lunch",
+        "dinner"
+      ],
+      "cuisine": "Indian",
+      "vegetarian": true
+    },
+    {
+      "id": "QJVlZj2_aAk",
+      "videoId": "QJVlZj2_aAk",
+      "title": "Lauki Kofta with Healthy Ragi Roti",
+      "description": "Lauki kofta and soft gluten-free ragi roti.",
+      "channelId": "UCEHCDn_BBnk3uTK1M64ptyw",
+      "channelName": "Ranveer Brar",
+      "publishedAt": "2026-08-07T08:30:27.000Z",
+      "thumbnailUrl": "https://i.ytimg.com/vi/QJVlZj2_aAk/hqdefault.jpg",
+      "videoUrl": "https://www.youtube.com/watch?v=QJVlZj2_aAk",
+      "durationSeconds": 900,
+      "cookingTimeMinutes": 25,
+      "mealTypes": [
+        "lunch",
+        "dinner"
+      ],
+      "cuisine": "Indian",
+      "vegetarian": true
+    }
+  ]
+}
