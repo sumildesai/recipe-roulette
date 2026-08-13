@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open <http://localhost:3000>. The checked-in `public/recipes.json` seed catalog means the app works without network access or an API key. Production builds use Next.js static export and write to `out/`.
+Open <http://localhost:3000>. The checked-in `public/recipes.json` seed catalog intentionally remains a small offline fallback, so local development works without network access or an API key. GitHub Actions replaces it inside the deployment artifact with the full generated catalog; it does not commit that large generated file back to `main`. Production builds use Next.js static export and write to `out/`.
 
 ## Catalog generation
 

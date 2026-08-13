@@ -6,6 +6,7 @@ import { CUISINES, MEAL_TYPES, type Catalog, type Recipe } from "@/lib/types";
 import { filterRecipes, pickRandomRecipe } from "@/lib/roulette";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const CATALOG_VERSION = process.env.NEXT_PUBLIC_CATALOG_VERSION ?? "local";
 const WHEEL_COLORS = ["#ff6b35", "#f7c548", "#39a96b", "#4b7bec", "#a55eea", "#ef5777"];
 
 export function RecipeRoulette() {
@@ -21,7 +22,10 @@ export function RecipeRoulette() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(`${BASE_PATH}/recipes.json`, { signal: controller.signal })
+    fetch(
+      `${BASE_PATH}/recipes.json?v=${encodeURIComponent(CATALOG_VERSION)}`,
+      { signal: controller.signal, cache: "no-store" }
+    )
       .then((response) => {
         if (!response.ok) throw new Error(`Catalog request failed (${response.status})`);
         return response.json() as Promise<Catalog>;

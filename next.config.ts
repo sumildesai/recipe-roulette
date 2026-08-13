@@ -13,13 +13,15 @@ const basePath =
   configuredBasePath && configuredBasePath !== "/"
     ? `/${configuredBasePath.replace(/^\/+|\/+$/g, "")}`
     : "";
+const catalogVersion = process.env.GITHUB_SHA?.slice(0, 12) ?? "local";
 
 const nextConfig: NextConfig = {
   output: "export",
   basePath,
   assetPrefix: basePath || undefined,
   env: {
-    NEXT_PUBLIC_BASE_PATH: basePath
+    NEXT_PUBLIC_BASE_PATH: basePath,
+    NEXT_PUBLIC_CATALOG_VERSION: catalogVersion
   },
   images: { unoptimized: true },
   trailingSlash: true
