@@ -13,7 +13,12 @@ const basePath =
   configuredBasePath && configuredBasePath !== "/"
     ? `/${configuredBasePath.replace(/^\/+|\/+$/g, "")}`
     : "";
-const catalogVersion = process.env.GITHUB_SHA?.slice(0, 12) ?? "local";
+const catalogVersion = [
+  process.env.GITHUB_SHA?.slice(0, 12),
+  process.env.GITHUB_RUN_ID
+]
+  .filter(Boolean)
+  .join("-") || "local";
 
 const nextConfig: NextConfig = {
   output: "export",
