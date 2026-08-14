@@ -76,7 +76,8 @@ async function classifyMealTypes(videos: VideoSource[], overrides: CatalogOverri
   }
   if (cacheChanged) await writeAiMealCache(aiCachePath, cache);
   const remaining = [...classifications.values()].filter(({ needsAi }) => needsAi).length;
-  if (remaining || failures) console.warn(`${remaining} meal classifications unresolved; ${failures} AI classifications failed or were invalid/low-confidence.`);
+  if (remaining) console.warn(`${remaining} meal classifications unresolved after AI classification.`);
+  if (failures) console.warn(`${failures} AI classifications failed or returned invalid output.`);
   return classifications;
 }
 

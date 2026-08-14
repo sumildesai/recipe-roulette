@@ -42,6 +42,7 @@ export interface AiMealCache {
 
 const BOILERPLATE = /\b(?:perfect|ideal|great|suitable|works?|good)\b[^.!?\n]{0,120}\b(?:breakfast|lunch|dinner)\b/i;
 const HASH_TAG = /#\w+/;
+const REGEX_CACHE = new Map<string, RegExp>();
 
 export function inferMealClassification({ title, description }: MealClassificationInput): MealClassification {
   const titleEvidence = evidenceForText(title, "title", 1);
@@ -204,12 +205,16 @@ function evidenceForText(
 }
 
 function matchesRule(text: string, rule: ClassificationRule<MealType>): boolean {
-  return rule.aliases.some((alias) => new RegExp(`\\b${escapeAlias(alias)}\\b`, "i").test(text)) &&
-    !rule.exclusions?.some((alias) => new RegExp(`\\b${escapeAlias(alias)}\\b`, "i").test(text));
+  return rule.aliases.some((alias) => ruleRegex(alias).test(text)) &&
+    !rule.exclusions?.some((alias) => ruleRegex(alias).test(text));
 }
 
-function escapeAlias(alias: string): string {
-  return alias.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+function ruleRegex(alias: string): RegExp {
+  const cached = REGEX_CACHE.get(alias);
+  if (cached) return cached;
+  const regex = new RegExp(`\\b${alias.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+")}\\b`, "i");
+  REGEX_CACHE.set(alias, regex);
+  return regex;
 }
 
 function uniqueLabels(evidence: MealClassificationEvidence[]): MealType[] {
