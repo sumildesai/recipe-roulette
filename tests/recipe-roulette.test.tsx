@@ -107,6 +107,8 @@ describe("RecipeRoulette", () => {
   it("shows loading, then the eligible catalog", async () => {
     render(<RecipeRoulette />);
     expect(screen.getByText("Loading recipes...")).toBeInTheDocument();
+    expect(await screen.findByText("Use the filters to narrow your options, then spin to get a random matching recipe."))
+      .toBeInTheDocument();
     expect(await screen.findByText("1 recipe ready to spin")).toBeInTheDocument();
   });
 
