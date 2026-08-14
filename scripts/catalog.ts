@@ -94,6 +94,19 @@ export function normalizeVideo(
   };
 }
 
+export function isCatalogCandidate(
+  video: VideoSource,
+  overrides: CatalogOverrides,
+  excluded: ReadonlySet<string> = new Set(overrides.exclude),
+  included: ReadonlySet<string> = new Set(overrides.include)
+): boolean {
+  const correction = overrides.corrections[video.videoId];
+  if (excluded.has(video.videoId) || correction?.vegetarian === false) return false;
+  if (included.has(video.videoId) || correction?.vegetarian === true) return true;
+  const text = `${correction?.title ?? video.title} ${correction?.description ?? video.description}`;
+  return isRecipeVideo(video) && classifyVegetarian(text) === true;
+}
+
 export function applyOverrides(
   videos: VideoSource[],
   overrides: CatalogOverrides,
@@ -102,13 +115,7 @@ export function applyOverrides(
   const excluded = new Set(overrides.exclude);
   const included = new Set(overrides.include);
   return videos
-    .filter((video) => {
-      const correction = overrides.corrections[video.videoId];
-      if (excluded.has(video.videoId) || correction?.vegetarian === false) return false;
-      if (included.has(video.videoId) || correction?.vegetarian === true) return true;
-      const text = `${correction?.title ?? video.title} ${correction?.description ?? video.description}`;
-      return isRecipeVideo(video) && classifyVegetarian(text) === true;
-    })
+    .filter((video) => isCatalogCandidate(video, overrides, excluded, included))
     .map((video) => ({
       ...normalizeVideo(video, overrides.corrections[video.videoId], mealClassifications.get(video.videoId)),
       vegetarian: true as const

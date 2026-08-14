@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { applyOverrides, CHANNELS, parseIsoDuration, type CatalogOverrides, type VideoSource } from "./catalog";
+import { applyOverrides, CHANNELS, isCatalogCandidate, parseIsoDuration, type CatalogOverrides, type VideoSource } from "./catalog";
 import {
   applyAiMealResponse,
   classifyMealWithAi,
@@ -36,7 +36,10 @@ async function main() {
 }
 
 async function classifyMealTypes(videos: VideoSource[], overrides: CatalogOverrides) {
-  const inputs = new Map(videos.map((video) => {
+  const excluded = new Set(overrides.exclude);
+  const included = new Set(overrides.include);
+  const candidates = videos.filter((video) => isCatalogCandidate(video, overrides, excluded, included));
+  const inputs = new Map(candidates.map((video) => {
     const correction = overrides.corrections[video.videoId];
     const input = { title: correction?.title ?? video.title, description: correction?.description ?? video.description };
     return [video.videoId, input];
