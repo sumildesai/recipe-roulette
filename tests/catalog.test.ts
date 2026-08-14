@@ -195,6 +195,8 @@ describe("catalog inference", () => {
         .toEqual({ minMinutes: 120, maxMinutes: 120 });
       expect(inferRecipeDurations("prep time:\t 10   mins").preparation)
         .toEqual({ minMinutes: 10, maxMinutes: 10 });
+      expect(inferRecipeDurations("total time: 1h30m").total)
+        .toEqual({ minMinutes: 90, maxMinutes: 90 });
     });
 
     it("keeps labeled preparation, cooking, resting, marination, and total durations distinct", () => {

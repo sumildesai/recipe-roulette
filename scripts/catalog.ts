@@ -43,15 +43,16 @@ const RECIPE_SIGNAL = /\b(recipe|cook|masala|curry|paneer|biryani|pasta|chaat|so
 const MAX_SUPPORTED_DURATION_MINUTES = 24 * 60;
 // Keep the optional sign so malformed negative values are consumed and rejected instead of reread as positive durations.
 const NUMBER_PATTERN = "-?\\d+(?:\\.\\d+)?";
-const UNIT_PATTERN = "(?:hours?|hrs?|hr|h|minutes?|mins?|min|m)";
-const UNIT_PATTERN_WITH_BOUNDARY = `${UNIT_PATTERN}\\b`;
-const DURATION_TOKEN_PATTERN = `${NUMBER_PATTERN}\\s*${UNIT_PATTERN_WITH_BOUNDARY}`;
+const WORD_UNIT_PATTERN = "(?:hours?|hrs?|hr|minutes?|mins?|min)\\b";
+const ABBREVIATED_UNIT_PATTERN = "[hm](?![A-Za-z_])";
+const UNIT_PATTERN = `(?:${WORD_UNIT_PATTERN}|${ABBREVIATED_UNIT_PATTERN})`;
+const DURATION_TOKEN_PATTERN = `${NUMBER_PATTERN}\\s*${UNIT_PATTERN}`;
 const DURATION_EXPRESSION_PATTERN = `${DURATION_TOKEN_PATTERN}(?:\\s*(?:and\\s+)?${DURATION_TOKEN_PATTERN})?`;
 const RANGE_SEPARATOR_PATTERN = "\\s*(?:-|–|—|to)\\s*";
-const DURATION_RANGE_PATTERN = `(${DURATION_EXPRESSION_PATTERN}|${NUMBER_PATTERN}\\s*(?=${RANGE_SEPARATOR_PATTERN}\\d))(?:${RANGE_SEPARATOR_PATTERN}(${DURATION_EXPRESSION_PATTERN}|${NUMBER_PATTERN}\\s*(?=${UNIT_PATTERN_WITH_BOUNDARY})))?`;
+const DURATION_RANGE_PATTERN = `(${DURATION_EXPRESSION_PATTERN}|${NUMBER_PATTERN}\\s*(?=${RANGE_SEPARATOR_PATTERN}\\d))(?:${RANGE_SEPARATOR_PATTERN}(${DURATION_EXPRESSION_PATTERN}|${NUMBER_PATTERN}\\s*(?=${UNIT_PATTERN})))?`;
 const DURATION_REGEX = new RegExp(DURATION_RANGE_PATTERN, "gi");
-const UNIT_REGEX = new RegExp(UNIT_PATTERN_WITH_BOUNDARY, "i");
-const UNIT_MATCH_REGEX = new RegExp(UNIT_PATTERN_WITH_BOUNDARY, "gi");
+const UNIT_REGEX = new RegExp(UNIT_PATTERN, "i");
+const UNIT_MATCH_REGEX = new RegExp(UNIT_PATTERN, "gi");
 
 const DURATION_LABELS = {
   preparation: ["prep(?:aration)?(?:\\s*time)?"],
@@ -204,7 +205,7 @@ function copyRangeUnit(sourceExpression: string, targetExpression: string): stri
 function parseDurationExpression(value: string): number | null {
   let minutes = 0;
   let matched = false;
-  const regex = new RegExp(`(${NUMBER_PATTERN})\\s*(${UNIT_PATTERN})\\b`, "gi");
+  const regex = new RegExp(`(${NUMBER_PATTERN})\\s*(${UNIT_PATTERN})`, "gi");
   for (const match of value.matchAll(regex)) {
     const amount = Number(match[1]);
     if (!Number.isFinite(amount) || amount < 0) return null;
@@ -242,9 +243,9 @@ function sumDurationRanges(ranges: Array<DurationRangeMinutes | null>): Duration
   const present = ranges.filter((range): range is DurationRangeMinutes => range !== null);
   if (present.length === 0) return null;
   const total = present.reduce<DurationRangeMinutes>(
-    (total, range) => ({
-      minMinutes: total.minMinutes + range.minMinutes,
-      maxMinutes: total.maxMinutes + range.maxMinutes
+    (acc, range) => ({
+      minMinutes: acc.minMinutes + range.minMinutes,
+      maxMinutes: acc.maxMinutes + range.maxMinutes
     }),
     { minMinutes: 0, maxMinutes: 0 }
   );
