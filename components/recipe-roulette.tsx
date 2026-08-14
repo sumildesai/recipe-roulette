@@ -99,7 +99,7 @@ export function RecipeRoulette() {
       <header>
         <p className="eyebrow">Dinner indecision, solved</p>
         <h1>Recipe Roulette</h1>
-        <p className="intro">Set a few preferences, spin the wheel, and cook along with a trusted chef.</p>
+        <p className="intro">Use the filters to narrow your options, then spin to get a random matching recipe.</p>
       </header>
 
       <section className="controls" aria-label="Recipe filters">
