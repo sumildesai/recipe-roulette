@@ -49,6 +49,7 @@ const UNIT_PATTERN = `(?:${WORD_UNIT_PATTERN}|${ABBREVIATED_UNIT_PATTERN})`;
 const DURATION_TOKEN_PATTERN = `${NUMBER_PATTERN}\\s*${UNIT_PATTERN}`;
 const DURATION_EXPRESSION_PATTERN = `${DURATION_TOKEN_PATTERN}(?:\\s*(?:and\\s+)?${DURATION_TOKEN_PATTERN})?`;
 const RANGE_SEPARATOR_PATTERN = "\\s*(?:-|–|—|to)\\s*";
+// Matches "<duration expression>" or "<number> - <duration expression>" so ranges can inherit the unit from one side.
 const DURATION_RANGE_PATTERN = `(${DURATION_EXPRESSION_PATTERN}|${NUMBER_PATTERN}\\s*(?=${RANGE_SEPARATOR_PATTERN}\\d))(?:${RANGE_SEPARATOR_PATTERN}(${DURATION_EXPRESSION_PATTERN}|${NUMBER_PATTERN}\\s*(?=${UNIT_PATTERN})))?`;
 const DURATION_REGEX = new RegExp(DURATION_RANGE_PATTERN, "gi");
 const UNIT_REGEX = new RegExp(UNIT_PATTERN, "i");
