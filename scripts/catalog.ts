@@ -103,7 +103,7 @@ export function inferRecipeDurations(text: string): RecipeDurations {
     for (const match of normalized.matchAll(regex)) {
       const range = parseDurationRangeMatch(match);
       if (!range) continue;
-      durations[component] = mergeDurationRanges(durations[component], range);
+      durations[component] = combineLabeledDuration(durations[component], range);
       labeledSpans.push({ start: match.index ?? 0, end: (match.index ?? 0) + match[0].length });
     }
   }
@@ -226,14 +226,14 @@ function createDurationRange(minMinutes: number, maxMinutes: number): DurationRa
   return { minMinutes, maxMinutes };
 }
 
-function mergeDurationRanges(
+function combineLabeledDuration(
   current: DurationRangeMinutes | null,
   next: DurationRangeMinutes
 ): DurationRangeMinutes {
   if (!current) return next;
   return {
-    minMinutes: current.minMinutes + next.minMinutes,
-    maxMinutes: current.maxMinutes + next.maxMinutes
+    minMinutes: Math.min(current.minMinutes, next.minMinutes),
+    maxMinutes: Math.max(current.maxMinutes, next.maxMinutes)
   };
 }
 

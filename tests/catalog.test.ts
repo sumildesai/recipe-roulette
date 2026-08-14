@@ -242,6 +242,11 @@ describe("catalog inference", () => {
         });
     });
 
+    it("does not add duplicate labels for the same duration component", () => {
+      expect(inferRecipeDurations("Cook time: 20 minutes. Cooking time: 30 minutes.").cooking)
+        .toEqual({ minMinutes: 20, maxMinutes: 30 });
+    });
+
     it("ignores malformed, negative, unsupported, and implausible durations", () => {
       expect(inferRecipeDurations("Cook time: -20 minutes")).toMatchObject({ cooking: null, overall: null });
       expect(inferRecipeDurations("Cook time: thirty minutes")).toMatchObject({ cooking: null, overall: null });
