@@ -48,6 +48,8 @@ const DURATION_EXPRESSION_PATTERN = `${DURATION_TOKEN_PATTERN}(?:\\s*(?:and\\s+)
 const RANGE_SEPARATOR_PATTERN = "\\s*(?:-|–|—|to)\\s*";
 const DURATION_RANGE_PATTERN = `(${DURATION_EXPRESSION_PATTERN}|${NUMBER_PATTERN}\\s*(?=${RANGE_SEPARATOR_PATTERN}\\d))(?:${RANGE_SEPARATOR_PATTERN}(${DURATION_EXPRESSION_PATTERN}|${NUMBER_PATTERN}\\s*(?=${UNIT_PATTERN}\\b)))?`;
 const DURATION_REGEX = new RegExp(DURATION_RANGE_PATTERN, "gi");
+const UNIT_REGEX = new RegExp(UNIT_PATTERN, "i");
+const UNIT_MATCH_REGEX = new RegExp(`${UNIT_PATTERN}\\b`, "gi");
 
 const DURATION_LABELS = {
   preparation: ["prep(?:aration)?(?:\\s*time)?"],
@@ -195,8 +197,8 @@ function parseDurationRangeMatch(match: RegExpMatchArray): DurationRangeMinutes 
 }
 
 function copyRangeUnit(sourceExpression: string, targetExpression: string): string {
-  if (new RegExp(UNIT_PATTERN, "i").test(targetExpression)) return targetExpression;
-  const unit = sourceExpression.match(new RegExp(`${UNIT_PATTERN}\\b`, "gi"))?.at(-1);
+  if (UNIT_REGEX.test(targetExpression)) return targetExpression;
+  const unit = sourceExpression.match(UNIT_MATCH_REGEX)?.at(-1);
   return unit ? `${targetExpression} ${unit}` : targetExpression;
 }
 
