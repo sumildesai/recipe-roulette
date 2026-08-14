@@ -49,12 +49,12 @@ select, input[type="search"] { width: 100%; border: 1px solid #cdbda8; border-ra
 .checkbox-dropdown-summary::after { content: "▾"; flex: none; color: #75655d; }
 .checkbox-dropdown[open] .checkbox-dropdown-summary::after { content: "▴"; }
 .checkbox-dropdown summary:focus-visible .checkbox-dropdown-summary { outline: 2px solid var(--orange); outline-offset: 2px; }
+.checkbox-group { min-width: 0; margin: 0; border: 0; padding: 0; }
 .checkbox-dropdown .checkbox-group {
   position: absolute; z-index: 5; left: 0; right: 0; margin-top: 6px; max-height: 240px; overflow-y: auto;
   background: white; border: 1px solid #cdbda8; border-radius: 10px; padding: 12px;
   box-shadow: 0 12px 30px rgba(74,45,27,.14);
 }
-.checkbox-group { min-width: 0; margin: 0; border: 0; padding: 0; }
 .visually-hidden {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
   overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
