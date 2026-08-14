@@ -44,13 +44,14 @@ const MAX_SUPPORTED_DURATION_MINUTES = 24 * 60;
 // Keep the optional sign so malformed negative values are consumed and rejected instead of reread as positive durations.
 const NUMBER_PATTERN = "-?\\d+(?:\\.\\d+)?";
 const UNIT_PATTERN = "(?:hours?|hrs?|hr|h|minutes?|mins?|min|m)";
-const DURATION_TOKEN_PATTERN = `${NUMBER_PATTERN}\\s*${UNIT_PATTERN}\\b`;
+const UNIT_PATTERN_WITH_BOUNDARY = `${UNIT_PATTERN}\\b`;
+const DURATION_TOKEN_PATTERN = `${NUMBER_PATTERN}\\s*${UNIT_PATTERN_WITH_BOUNDARY}`;
 const DURATION_EXPRESSION_PATTERN = `${DURATION_TOKEN_PATTERN}(?:\\s*(?:and\\s+)?${DURATION_TOKEN_PATTERN})?`;
 const RANGE_SEPARATOR_PATTERN = "\\s*(?:-|–|—|to)\\s*";
-const DURATION_RANGE_PATTERN = `(${DURATION_EXPRESSION_PATTERN}|${NUMBER_PATTERN}\\s*(?=${RANGE_SEPARATOR_PATTERN}\\d))(?:${RANGE_SEPARATOR_PATTERN}(${DURATION_EXPRESSION_PATTERN}|${NUMBER_PATTERN}\\s*(?=${UNIT_PATTERN}\\b)))?`;
+const DURATION_RANGE_PATTERN = `(${DURATION_EXPRESSION_PATTERN}|${NUMBER_PATTERN}\\s*(?=${RANGE_SEPARATOR_PATTERN}\\d))(?:${RANGE_SEPARATOR_PATTERN}(${DURATION_EXPRESSION_PATTERN}|${NUMBER_PATTERN}\\s*(?=${UNIT_PATTERN_WITH_BOUNDARY})))?`;
 const DURATION_REGEX = new RegExp(DURATION_RANGE_PATTERN, "gi");
-const UNIT_REGEX = new RegExp(UNIT_PATTERN, "i");
-const UNIT_MATCH_REGEX = new RegExp(`${UNIT_PATTERN}\\b`, "gi");
+const UNIT_REGEX = new RegExp(UNIT_PATTERN_WITH_BOUNDARY, "i");
+const UNIT_MATCH_REGEX = new RegExp(UNIT_PATTERN_WITH_BOUNDARY, "gi");
 
 const DURATION_LABELS = {
   preparation: ["prep(?:aration)?(?:\\s*time)?"],
@@ -98,7 +99,6 @@ export function inferRecipeDurations(text: string): RecipeDurations {
     overall: null,
     overallSource: "none"
   };
-  const labeledSpans: Array<{ start: number; end: number }> = [];
 
   for (const component of Object.keys(DURATION_LABELS) as Array<keyof typeof DURATION_LABELS>) {
     const labelPattern = DURATION_LABELS[component].join("|");
@@ -107,13 +107,11 @@ export function inferRecipeDurations(text: string): RecipeDurations {
       const range = parseDurationRangeMatch(match);
       if (!range) continue;
       durations[component] = combineLabeledDuration(durations[component], range);
-      labeledSpans.push({ start: match.index ?? 0, end: (match.index ?? 0) + match[0].length });
     }
   }
 
   if (!hasLabeledDuration(durations)) {
     const unlabeled = [...normalized.matchAll(DURATION_REGEX)]
-      .filter((match) => !overlapsSpans(match.index ?? 0, (match.index ?? 0) + match[0].length, labeledSpans))
       .map(parseDurationRangeMatch)
       .filter((range): range is DurationRangeMinutes => range !== null);
     if (unlabeled.length === 1) {
@@ -256,9 +254,6 @@ function hasLabeledDuration(durations: RecipeDurations): boolean {
   return Boolean(durations.preparation || durations.cooking || durations.resting || durations.marination || durations.total);
 }
 
-function overlapsSpans(start: number, end: number, spans: Array<{ start: number; end: number }>): boolean {
-  return spans.some((span) => start < span.end && end > span.start);
-}
 
 export function isCatalogCandidate(
   video: VideoSource,
