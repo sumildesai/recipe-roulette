@@ -6,11 +6,18 @@ export type Cuisine = (typeof CUISINES)[number];
 
 export type RecipeDurationOverallSource = "explicit-total" | "active-components" | "unlabeled-total" | "none";
 
+/**
+ * Inclusive minimum and maximum bounds for a parsed recipe duration.
+ */
 export interface DurationRangeMinutes {
   minMinutes: number;
   maxMinutes: number;
 }
 
+/**
+ * Parsed recipe duration components. Passive resting and marination remain
+ * separate from the active-time fallback unless an explicit total is available.
+ */
 export interface RecipeDurations {
   preparation: DurationRangeMinutes | null;
   cooking: DurationRangeMinutes | null;
@@ -33,6 +40,10 @@ export interface Recipe {
   videoUrl: string;
   durationSeconds: number | null;
   cookingTimeMinutes: number | null;
+  /**
+   * Enhanced duration metadata for generated catalogs. Optional for compatibility
+   * with older serialized seed or cached catalogs that only include cookingTimeMinutes.
+   */
   durations?: RecipeDurations;
   mealTypes: MealType[];
   cuisine: Cuisine | null;

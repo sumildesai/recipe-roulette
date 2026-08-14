@@ -41,6 +41,7 @@ const REGEX_CACHE = new Map<string, RegExp>();
 const NON_VEG = /\b(chicken|mutton|lamb|fish|prawn|shrimp|meat|keema|kebab|seafood|crab|salmon|tuna|beef|pork)\b/i;
 const RECIPE_SIGNAL = /\b(recipe|cook|masala|curry|paneer|biryani|pasta|chaat|soup|cake|bread|paratha|naan|dal|sabzi|rice|noodles|dessert)\b/i;
 const MAX_SUPPORTED_DURATION_MINUTES = 24 * 60;
+// Keep the optional sign so malformed negative values are consumed and rejected instead of reread as positive durations.
 const NUMBER_PATTERN = "-?\\d+(?:\\.\\d+)?";
 const UNIT_PATTERN = "(?:hours?|hrs?|hr|h|minutes?|mins?|min|m)";
 const DURATION_TOKEN_PATTERN = `${NUMBER_PATTERN}\\s*${UNIT_PATTERN}\\b`;
