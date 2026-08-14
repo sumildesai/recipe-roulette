@@ -52,6 +52,45 @@ const searchCatalog: Catalog = {
   ]
 };
 
+const sourceCatalog: Catalog = {
+  ...catalog,
+  recipes: [
+    catalog.recipes[0],
+    {
+      id: "two",
+      videoId: "two",
+      title: "Test Biryani",
+      description: "Rice and spices",
+      channelId: "channel2",
+      channelName: "Ranveer Brar",
+      publishedAt: "2026-01-01T00:00:00.000Z",
+      thumbnailUrl: "https://example.com/two.jpg",
+      videoUrl: "https://youtube.com/watch?v=two",
+      durationSeconds: 900,
+      cookingTimeMinutes: 45,
+      mealTypes: ["dinner"],
+      cuisine: "Indian",
+      vegetarian: true
+    },
+    {
+      id: "three",
+      videoId: "three",
+      title: "Test Pasta",
+      description: "Creamy pasta",
+      channelId: "channel",
+      channelName: "Your Food Lab",
+      publishedAt: "2026-01-01T00:00:00.000Z",
+      thumbnailUrl: "https://example.com/three.jpg",
+      videoUrl: "https://youtube.com/watch?v=three",
+      durationSeconds: 600,
+      cookingTimeMinutes: 30,
+      mealTypes: ["dinner"],
+      cuisine: "Italian",
+      vegetarian: true
+    }
+  ]
+};
+
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
     ok: true,
@@ -118,6 +157,36 @@ describe("RecipeRoulette", () => {
     expect(screen.getByRole("button", { name: "Spin" })).toBeDisabled();
   });
 
+  it("shows source options without duplicates and updates eligible counts", async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(sourceCatalog)
+    } as Response);
+    render(<RecipeRoulette />);
+    await screen.findByText("3 recipes ready to spin");
+    const sourceSelect = screen.getByLabelText("Source");
+    expect(Array.from((sourceSelect as HTMLSelectElement).options).map((option) => option.textContent))
+      .toEqual(["Any source", "Ranveer Brar", "Your Food Lab"]);
+    fireEvent.change(sourceSelect, { target: { value: "Ranveer Brar" } });
+    expect(await screen.findByText("1 recipe ready to spin")).toBeInTheDocument();
+    fireEvent.change(sourceSelect, { target: { value: "" } });
+    expect(await screen.findByText("3 recipes ready to spin")).toBeInTheDocument();
+  });
+
+  it("shows the empty state when source and cuisine filters have no overlap", async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(sourceCatalog)
+    } as Response);
+    render(<RecipeRoulette />);
+    await screen.findByText("3 recipes ready to spin");
+    fireEvent.change(screen.getByLabelText("Source"), { target: { value: "Ranveer Brar" } });
+    await screen.findByText("1 recipe ready to spin");
+    fireEvent.change(screen.getByLabelText("Cuisine"), { target: { value: "Italian" } });
+    expect(await screen.findByText(/No recipes match/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Spin" })).toBeDisabled();
+  });
+
   it("clears the current selection when it no longer matches the query", async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
@@ -131,6 +200,22 @@ describe("RecipeRoulette", () => {
     fireEvent.click(button);
     expect(await screen.findByRole("heading", { name: "Test Paneer" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Search recipes"), { target: { value: "biryani" } });
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Test Paneer" })).not.toBeInTheDocument());
+  });
+
+  it("clears the current selection when source changes and the recipe is no longer eligible", async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(searchCatalog)
+    } as Response);
+    render(<RecipeRoulette />);
+    await screen.findByText("2 recipes ready to spin");
+    fireEvent.change(screen.getByLabelText("Search recipes"), { target: { value: "paneer" } });
+    await screen.findByText("1 recipe ready to spin");
+    const button = screen.getByRole("button", { name: "Spin" });
+    fireEvent.click(button);
+    expect(await screen.findByRole("heading", { name: "Test Paneer" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Source"), { target: { value: "Ranveer Brar" } });
     await waitFor(() => expect(screen.queryByRole("heading", { name: "Test Paneer" })).not.toBeInTheDocument());
   });
 });

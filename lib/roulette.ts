@@ -3,6 +3,7 @@ import type { Recipe } from "./types";
 export interface RecipeFilters {
   mealType: string;
   cuisine: string;
+  source: string;
   maxCookingTime: number | null;
 }
 
@@ -12,6 +13,9 @@ export function filterRecipes(recipes: Recipe[], filters: RecipeFilters): Recipe
       return false;
     }
     if (filters.cuisine && recipe.cuisine !== filters.cuisine) {
+      return false;
+    }
+    if (filters.source && recipe.channelName !== filters.source) {
       return false;
     }
     if (filters.maxCookingTime !== null) {

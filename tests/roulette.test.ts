@@ -29,14 +29,33 @@ describe("recipe filtering", () => {
   const recipes = [recipe("fast", 20), recipe("slow", 90), recipe("unknown", null), recipe("italian", 30, "Italian")];
 
   it("keeps unknown times with no cap and excludes them with an active cap", () => {
-    expect(filterRecipes(recipes, { mealType: "", cuisine: "", maxCookingTime: null })).toHaveLength(4);
-    expect(filterRecipes(recipes, { mealType: "", cuisine: "", maxCookingTime: 30 }).map(({ id }) => id))
+    expect(filterRecipes(recipes, { mealType: "", cuisine: "", source: "", maxCookingTime: null })).toHaveLength(4);
+    expect(filterRecipes(recipes, { mealType: "", cuisine: "", source: "", maxCookingTime: 30 }).map(({ id }) => id))
       .toEqual(["fast", "italian"]);
   });
 
   it("combines meal and cuisine filters", () => {
-    expect(filterRecipes(recipes, { mealType: "dinner", cuisine: "Italian", maxCookingTime: null }).map(({ id }) => id))
+    expect(filterRecipes(recipes, { mealType: "dinner", cuisine: "Italian", source: "", maxCookingTime: null }).map(({ id }) => id))
       .toEqual(["italian"]);
+  });
+
+  it("filters by source channel", () => {
+    const sourced = [
+      recipe("yfl", 20, "Indian", { channelName: "Your Food Lab" }),
+      recipe("rb", 20, "Indian", { channelName: "Ranveer Brar" })
+    ];
+    expect(filterRecipes(sourced, { mealType: "", cuisine: "", source: "Ranveer Brar", maxCookingTime: null }).map(({ id }) => id))
+      .toEqual(["rb"]);
+  });
+
+  it("combines source with other filters", () => {
+    const sourced = [
+      recipe("yfl-fast", 20, "Indian", { channelName: "Your Food Lab" }),
+      recipe("yfl-slow", 60, "Indian", { channelName: "Your Food Lab" }),
+      recipe("rb-fast", 20, "Indian", { channelName: "Ranveer Brar" })
+    ];
+    expect(filterRecipes(sourced, { mealType: "dinner", cuisine: "Indian", source: "Your Food Lab", maxCookingTime: 30 }).map(({ id }) => id))
+      .toEqual(["yfl-fast"]);
   });
 });
 
