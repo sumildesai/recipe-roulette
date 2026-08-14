@@ -6,6 +6,12 @@ on:
   schedule:
     - cron: "17 5 * * 1,5"
   workflow_dispatch:
+    inputs:
+      refresh_catalog:
+        description: Regenerate the catalog from YouTube before deploying
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -35,12 +41,12 @@ jobs:
           key: recipes-catalog-v1-${{ github.run_id }}
           restore-keys: recipes-catalog-v1-
       - name: Refresh catalog from official channels
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' || inputs.refresh_catalog
         run: npm run catalog:generate
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
       - name: Verify refreshed catalog
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' || inputs.refresh_catalog
         run: |
           node -e "
             const catalog = require('./public/recipes.json');
@@ -49,13 +55,13 @@ jobs:
             console.log('Verified refreshed catalog with ' + catalog.recipes.length + ' recipes.');
           "
       - name: Save generated catalog for later deployments
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' || inputs.refresh_catalog
         uses: actions/cache/save@v4
         with:
           path: public/recipes.json
           key: recipes-catalog-v1-${{ github.run_id }}
       - name: Report catalog in use
-        if: github.event_name != 'schedule'
+        if: github.event_name != 'schedule' && !inputs.refresh_catalog
         env:
           RESTORED_KEY: ${{ steps.catalog-cache.outputs.cache-matched-key }}
         run: |
