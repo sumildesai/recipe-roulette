@@ -130,6 +130,26 @@ describe("RecipeRoulette", () => {
     expect(screen.getByRole("button", { name: "Spin" })).toBeDisabled();
   });
 
+  it("keeps each checkbox group inside a collapsed dropdown that summarises the selection", async () => {
+    render(<RecipeRoulette />);
+    await screen.findByText("1 recipe ready to spin");
+    const dropdown = screen.getByRole("group", { name: "Cuisine" }).closest("details");
+    expect(dropdown).not.toBeNull();
+    expect(dropdown).not.toHaveAttribute("open");
+    expect(dropdown).toHaveTextContent("Any");
+
+    fireEvent.click(dropdown!.querySelector("summary")!);
+    expect(dropdown).toHaveAttribute("open");
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Indian" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Italian" }));
+    expect(dropdown).toHaveTextContent("Indian, Italian");
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Italian" }));
+    expect(dropdown).toHaveTextContent("Indian");
+    expect(await screen.findByText("1 recipe ready to spin")).toBeInTheDocument();
+  });
+
   it("exposes accessible checkbox groups", async () => {
     render(<RecipeRoulette />);
     await screen.findByText("1 recipe ready to spin");

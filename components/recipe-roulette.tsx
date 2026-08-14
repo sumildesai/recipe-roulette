@@ -235,28 +235,37 @@ function CheckboxGroup<T extends string>({
   formatLabel = (value) => value,
   onChange
 }: CheckboxGroupProps<T>) {
+  const summary =
+    selected.length === 0 ? "Any" : selected.map((value) => formatLabel(value)).join(", ");
+
   return (
-    <fieldset className="checkbox-group">
-      <legend>{legend}</legend>
-      <div>
-        {options.map((option) => (
-          <label key={option}>
-            <input
-              type="checkbox"
-              value={option}
-              checked={selected.includes(option)}
-              onChange={(event) =>
-                onChange(
-                  event.target.checked
-                    ? [...selected, option]
-                    : selected.filter((value) => value !== option)
-                )
-              }
-            />
-            {formatLabel(option)}
-          </label>
-        ))}
-      </div>
-    </fieldset>
+    <details className="checkbox-dropdown">
+      <summary>
+        <span className="checkbox-dropdown-legend">{legend}</span>
+        <span className="checkbox-dropdown-summary">{summary}</span>
+      </summary>
+      <fieldset className="checkbox-group">
+        <legend className="visually-hidden">{legend}</legend>
+        <div>
+          {options.map((option) => (
+            <label key={option}>
+              <input
+                type="checkbox"
+                value={option}
+                checked={selected.includes(option)}
+                onChange={(event) =>
+                  onChange(
+                    event.target.checked
+                      ? [...selected, option]
+                      : selected.filter((value) => value !== option)
+                  )
+                }
+              />
+              {formatLabel(option)}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+    </details>
   );
 }
