@@ -125,9 +125,17 @@ describe("RecipeRoulette", () => {
   it("shows an empty state when filters remove all recipes", async () => {
     render(<RecipeRoulette />);
     await screen.findByText("1 recipe ready to spin");
-    fireEvent.change(screen.getByLabelText("Cuisine"), { target: { value: "Italian" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Italian" }));
     expect(screen.getByText(/No recipes match/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Spin" })).toBeDisabled();
+  });
+
+  it("exposes accessible checkbox groups", async () => {
+    render(<RecipeRoulette />);
+    await screen.findByText("1 recipe ready to spin");
+    expect(screen.getByRole("group", { name: "Meal type" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Cuisine" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Source" })).toBeInTheDocument();
   });
 
   it("surfaces catalog errors", async () => {
@@ -159,19 +167,25 @@ describe("RecipeRoulette", () => {
     expect(screen.getByRole("button", { name: "Spin" })).toBeDisabled();
   });
 
-  it("shows source options without duplicates and updates eligible counts", async () => {
+  it("checks and unchecks multiple sources with OR semantics", async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(sourceCatalog)
     } as Response);
     render(<RecipeRoulette />);
     await screen.findByText("3 recipes ready to spin");
-    const sourceSelect = screen.getByLabelText("Source");
-    expect(Array.from((sourceSelect as HTMLSelectElement).options).map((option) => option.textContent))
-      .toEqual(["Any source", "Ranveer Brar", "Your Food Lab"]);
-    fireEvent.change(sourceSelect, { target: { value: "Ranveer Brar" } });
+    const sourceGroup = screen.getByRole("group", { name: "Source" });
+    const sourceOptions = Array.from(sourceGroup.querySelectorAll("input")).map(
+      (input) => input.parentElement?.textContent
+    );
+    expect(sourceOptions).toEqual(["Ranveer Brar", "Your Food Lab"]);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Ranveer Brar" }));
     expect(await screen.findByText("1 recipe ready to spin")).toBeInTheDocument();
-    fireEvent.change(sourceSelect, { target: { value: "" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Your Food Lab" }));
+    expect(await screen.findByText("3 recipes ready to spin")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Ranveer Brar" }));
+    expect(await screen.findByText("2 recipes ready to spin")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Your Food Lab" }));
     expect(await screen.findByText("3 recipes ready to spin")).toBeInTheDocument();
   });
 
@@ -182,9 +196,9 @@ describe("RecipeRoulette", () => {
     } as Response);
     render(<RecipeRoulette />);
     await screen.findByText("3 recipes ready to spin");
-    fireEvent.change(screen.getByLabelText("Source"), { target: { value: "Ranveer Brar" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Ranveer Brar" }));
     await screen.findByText("1 recipe ready to spin");
-    fireEvent.change(screen.getByLabelText("Cuisine"), { target: { value: "Italian" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Italian" }));
     expect(await screen.findByText(/No recipes match/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Spin" })).toBeDisabled();
   });
@@ -212,12 +226,15 @@ describe("RecipeRoulette", () => {
     } as Response);
     render(<RecipeRoulette />);
     await screen.findByText("3 recipes ready to spin");
-    fireEvent.change(screen.getByLabelText("Source"), { target: { value: "Ranveer Brar" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Ranveer Brar" }));
     await screen.findByText("1 recipe ready to spin");
     const button = screen.getByRole("button", { name: "Spin" });
     fireEvent.click(button);
     expect(await screen.findByRole("heading", { name: "Test Biryani" })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Source"), { target: { value: "Your Food Lab" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Your Food Lab" }));
+    await screen.findByText("3 recipes ready to spin");
+    expect(screen.getByRole("heading", { name: "Test Biryani" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Ranveer Brar" }));
     await screen.findByText("2 recipes ready to spin");
     await waitFor(() => expect(screen.queryByRole("heading", { name: "Test Biryani" })).not.toBeInTheDocument());
   });

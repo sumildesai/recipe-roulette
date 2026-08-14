@@ -1,21 +1,24 @@
-import type { Recipe } from "./types";
+import type { Cuisine, MealType, Recipe } from "./types";
 
 export interface RecipeFilters {
-  mealType: string;
-  cuisine: string;
-  source: string;
+  mealTypes: readonly MealType[];
+  cuisines: readonly Cuisine[];
+  sources: readonly string[];
   maxCookingTime: number | null;
 }
 
 export function filterRecipes(recipes: Recipe[], filters: RecipeFilters): Recipe[] {
   return recipes.filter((recipe) => {
-    if (filters.mealType && !recipe.mealTypes.includes(filters.mealType as Recipe["mealTypes"][number])) {
+    if (
+      filters.mealTypes.length > 0 &&
+      !filters.mealTypes.some((mealType) => recipe.mealTypes.includes(mealType))
+    ) {
       return false;
     }
-    if (filters.cuisine && recipe.cuisine !== filters.cuisine) {
+    if (filters.cuisines.length > 0 && !filters.cuisines.some((cuisine) => recipe.cuisine === cuisine)) {
       return false;
     }
-    if (filters.source && recipe.channelName !== filters.source) {
+    if (filters.sources.length > 0 && !filters.sources.includes(recipe.channelName)) {
       return false;
     }
     if (filters.maxCookingTime !== null) {
