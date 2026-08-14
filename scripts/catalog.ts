@@ -241,13 +241,14 @@ function combineLabeledDuration(
 function sumDurationRanges(ranges: Array<DurationRangeMinutes | null>): DurationRangeMinutes | null {
   const present = ranges.filter((range): range is DurationRangeMinutes => range !== null);
   if (present.length === 0) return null;
-  return present.reduce<DurationRangeMinutes>(
+  const total = present.reduce<DurationRangeMinutes>(
     (total, range) => ({
       minMinutes: total.minMinutes + range.minMinutes,
       maxMinutes: total.maxMinutes + range.maxMinutes
     }),
     { minMinutes: 0, maxMinutes: 0 }
   );
+  return createDurationRange(total.minMinutes, total.maxMinutes);
 }
 
 function hasLabeledDuration(durations: RecipeDurations): boolean {
