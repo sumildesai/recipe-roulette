@@ -206,16 +206,17 @@ describe("RecipeRoulette", () => {
   it("clears the current selection when source changes and the recipe is no longer eligible", async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve(searchCatalog)
+      json: () => Promise.resolve(sourceCatalog)
     } as Response);
     render(<RecipeRoulette />);
-    await screen.findByText("2 recipes ready to spin");
-    fireEvent.change(screen.getByLabelText("Search recipes"), { target: { value: "paneer" } });
+    await screen.findByText("3 recipes ready to spin");
+    fireEvent.change(screen.getByLabelText("Source"), { target: { value: "Ranveer Brar" } });
     await screen.findByText("1 recipe ready to spin");
     const button = screen.getByRole("button", { name: "Spin" });
     fireEvent.click(button);
-    expect(await screen.findByRole("heading", { name: "Test Paneer" })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Source"), { target: { value: "Ranveer Brar" } });
-    await waitFor(() => expect(screen.queryByRole("heading", { name: "Test Paneer" })).not.toBeInTheDocument());
+    expect(await screen.findByRole("heading", { name: "Test Biryani" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Source"), { target: { value: "Your Food Lab" } });
+    await screen.findByText("2 recipes ready to spin");
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Test Biryani" })).not.toBeInTheDocument());
   });
 });
