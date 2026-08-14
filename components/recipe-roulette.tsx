@@ -243,6 +243,7 @@ function CheckboxGroup<T extends string>({
           <label key={option}>
             <input
               type="checkbox"
+              value={option}
               checked={selected.includes(option)}
               onChange={(event) =>
                 onChange(
