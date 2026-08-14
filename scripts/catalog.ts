@@ -101,6 +101,7 @@ export function inferRecipeDurations(text: string): RecipeDurations {
     overall: null,
     overallSource: "none"
   };
+  const hasDurationLabelKeyword = containsDurationLabel(normalized);
 
   for (const component of Object.keys(DURATION_LABELS) as Array<keyof typeof DURATION_LABELS>) {
     const labelPattern = DURATION_LABELS[component].join("|");
@@ -112,7 +113,7 @@ export function inferRecipeDurations(text: string): RecipeDurations {
     }
   }
 
-  if (!hasLabeledDuration(durations)) {
+  if (!hasDurationLabelKeyword && !hasLabeledDuration(durations)) {
     const unlabeled = [...normalized.matchAll(DURATION_REGEX)]
       .map(parseDurationRangeMatch)
       .filter((range): range is DurationRangeMinutes => range !== null);
@@ -255,6 +256,11 @@ function sumDurationRanges(ranges: Array<DurationRangeMinutes | null>): Duration
 
 function hasLabeledDuration(durations: RecipeDurations): boolean {
   return Boolean(durations.preparation || durations.cooking || durations.resting || durations.marination || durations.total);
+}
+
+function containsDurationLabel(text: string): boolean {
+  const labelPattern = Object.values(DURATION_LABELS).flat().join("|");
+  return new RegExp(`\\b(?:${labelPattern})\\b`, "i").test(text);
 }
 
 

@@ -151,7 +151,7 @@ export function RecipeRoulette() {
             onChange={(event) => setMaxTime(Number(event.target.value))}
             aria-valuetext={maxTime === 0 ? "No time limit" : `${maxTime} minutes`}
           />
-          <small>Uses explicit totals when available; otherwise filters by active prep and cooking time.</small>
+          <small>Uses explicit totals when available; unknown times appear only with no limit.</small>
         </label>
       </section>
 

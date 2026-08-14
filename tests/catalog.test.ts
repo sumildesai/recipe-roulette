@@ -232,6 +232,11 @@ describe("catalog inference", () => {
         overall: null,
         overallSource: "none"
       });
+      expect(inferRecipeDurations("Cook time: thirty minutes. Serve after 10 minutes.")).toMatchObject({
+        total: null,
+        overall: null,
+        overallSource: "none"
+      });
     });
 
     it("prefers explicit total time over active components and excludes passive components from active fallback", () => {
