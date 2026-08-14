@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { applyOverrides, CHANNELS, isCatalogCandidate, parseIsoDuration, type CatalogOverrides, type VideoSource } from "./catalog";
 import {
   applyAiMealResponse,
@@ -35,7 +36,23 @@ async function main() {
   console.log(`Wrote ${recipes.length} recipes to ${outputPath}`);
 }
 
-async function classifyMealTypes(videos: VideoSource[], overrides: CatalogOverrides) {
+export interface ClassifyMealTypesDeps {
+  readAiMealCache: typeof readAiMealCache;
+  writeAiMealCache: typeof writeAiMealCache;
+  classifyMealWithAi: typeof classifyMealWithAi;
+}
+
+const defaultClassifyMealTypesDeps: ClassifyMealTypesDeps = {
+  readAiMealCache,
+  writeAiMealCache,
+  classifyMealWithAi
+};
+
+export async function classifyMealTypes(
+  videos: VideoSource[],
+  overrides: CatalogOverrides,
+  deps: ClassifyMealTypesDeps = defaultClassifyMealTypesDeps
+) {
   const excluded = new Set(overrides.exclude);
   const included = new Set(overrides.include);
   const candidates = videos.filter((video) => isCatalogCandidate(video, overrides, excluded, included));
@@ -54,7 +71,7 @@ async function classifyMealTypes(videos: VideoSource[], overrides: CatalogOverri
     return classifications;
   }
 
-  const cache = await readAiMealCache(aiCachePath);
+  const cache = await deps.readAiMealCache(aiCachePath);
   let cacheChanged = false;
   let failures = 0;
   for (const [videoId, deterministic] of unresolved) {
@@ -62,7 +79,7 @@ async function classifyMealTypes(videos: VideoSource[], overrides: CatalogOverri
     if (!input) continue;
     const key = mealClassificationCacheKey(input);
     try {
-      const response = cache.entries[key] ?? await classifyMealWithAi(input, classifierKey);
+      const response = cache.entries[key] ?? await deps.classifyMealWithAi(input, classifierKey);
       if (!response) {
         failures++;
         continue;
@@ -77,7 +94,7 @@ async function classifyMealTypes(videos: VideoSource[], overrides: CatalogOverri
       console.warn(`Meal classifier failed for ${videoId}: ${error instanceof Error ? error.message : error}`);
     }
   }
-  if (cacheChanged) await writeAiMealCache(aiCachePath, cache);
+  if (cacheChanged) await deps.writeAiMealCache(aiCachePath, cache);
   const remaining = [...classifications.values()].filter(({ needsAi }) => needsAi).length;
   if (remaining) console.warn(`${remaining} meal classifications unresolved after AI classification.`);
   if (failures) console.warn(`${failures} AI classifications failed or returned invalid output.`);
@@ -147,7 +164,9 @@ async function youtube<T>(resource: string, params: Record<string, string | unde
   return response.json() as Promise<T>;
 }
 
-main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  main().catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
+}
