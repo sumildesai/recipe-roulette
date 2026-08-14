@@ -54,7 +54,7 @@ export function inferCookingTime(text: string): number | null {
 }
 
 export function inferMealTypes(text: string): MealType[] {
-  return inferMealClassification({ title: "", description: text }).labels;
+  return inferMealClassification({ title: text, description: "" }).labels;
 }
 
 export function inferCuisine(text: string): Cuisine | null {

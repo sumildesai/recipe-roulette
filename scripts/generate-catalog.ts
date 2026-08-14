@@ -36,15 +36,18 @@ async function main() {
 }
 
 async function classifyMealTypes(videos: VideoSource[], overrides: CatalogOverrides) {
-  const classifications = new Map(videos.map((video) => {
+  const inputs = new Map(videos.map((video) => {
     const correction = overrides.corrections[video.videoId];
     const input = { title: correction?.title ?? video.title, description: correction?.description ?? video.description };
-    return [video.videoId, inferMealClassification(input)];
+    return [video.videoId, input];
   }));
+  const classifications = new Map(
+    [...inputs].map(([videoId, input]) => [videoId, inferMealClassification(input)])
+  );
   const unresolved = [...classifications.entries()].filter(([videoId, result]) => result.needsAi && !overrides.corrections[videoId]?.mealTypes);
   const classifierKey = process.env.MEAL_CLASSIFIER_API_KEY;
   if (!classifierKey) {
-    if (unresolved.length) console.warn(`${unresolved.length} meal classifications unresolved; set MEAL_CLASSIFIER_API_KEY to enable offline AI review.`);
+    if (unresolved.length) console.warn(`${unresolved.length} meal classifications unresolved; set MEAL_CLASSIFIER_API_KEY to enable AI-assisted classification.`);
     return classifications;
   }
 
@@ -52,10 +55,8 @@ async function classifyMealTypes(videos: VideoSource[], overrides: CatalogOverri
   let cacheChanged = false;
   let failures = 0;
   for (const [videoId, deterministic] of unresolved) {
-    const video = videos.find(({ videoId: id }) => id === videoId);
-    if (!video) continue;
-    const correction = overrides.corrections[videoId];
-    const input = { title: correction?.title ?? video.title, description: correction?.description ?? video.description };
+    const input = inputs.get(videoId);
+    if (!input) continue;
     const key = mealClassificationCacheKey(input);
     try {
       const response = cache.entries[key] ?? await classifyMealWithAi(input, classifierKey);
