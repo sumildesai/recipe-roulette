@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
 import {
   applyOverrides,
   classifyVegetarian,
@@ -8,6 +11,15 @@ import {
   parseIsoDuration,
   type VideoSource
 } from "@/scripts/catalog";
+import {
+  applyAiMealResponse,
+  inferMealClassification,
+  mealClassificationCacheKey,
+  readAiMealCache,
+  validateAiMealResponse,
+  writeAiMealCache
+} from "@/scripts/meal-classification";
+import { classifyMealTypes } from "@/scripts/generate-catalog";
 
 const video: VideoSource = {
   videoId: "recipe-1",
@@ -28,6 +40,134 @@ describe("catalog inference", () => {
     expect(classifyVegetarian("anda chicken curry")).toBe(false);
     expect(classifyVegetarian("eggless besan bhurji")).toBe(true);
     expect(classifyVegetarian("tomato soup")).toBe(true);
+  });
+
+  describe("source-aware meal inference", () => {
+    it("prioritizes title labels and structured metadata", () => {
+      expect(inferMealClassification({
+        title: "Quick Breakfast Poha",
+        description: "Perfect for breakfast, lunch, or dinner."
+      })).toMatchObject({ labels: ["breakfast"], needsAi: false });
+      expect(inferMealClassification({
+        title: "Vegetable Poha",
+        description: "Course: Breakfast\nA quick weekday recipe."
+      })).toMatchObject({ labels: ["breakfast"], needsAi: false });
+    });
+
+    it("rejects boilerplate and conflicting sources instead of guessing", () => {
+      expect(inferMealClassification({
+        title: "Vegetable Poha Recipe",
+        description: "Perfect for breakfast, lunch, or dinner."
+      })).toMatchObject({ labels: [], needsAi: true });
+      expect(inferMealClassification({
+        title: "Breakfast Paratha",
+        description: "Course: Dinner"
+      })).toMatchObject({ labels: [], needsAi: true });
+    });
+
+    it("retains meaningful multi-label recipes from an explicit title", () => {
+      expect(inferMealClassification({
+        title: "Breakfast Snack: Masala Toast",
+        description: "Crisp and quick."
+      })).toMatchObject({ labels: ["breakfast", "snack"], needsAi: false });
+    });
+
+    it("accepts only valid, sufficiently confident AI labels for implicit dishes", () => {
+      const implicit = inferMealClassification({ title: "Traditional Poha", description: "Flattened rice with peanuts." });
+      expect(implicit).toMatchObject({ labels: [], needsAi: true });
+      expect(applyAiMealResponse(implicit, {
+        labels: [{ label: "breakfast", confidence: 0.92, evidence: "Poha is a customary morning dish." }]
+      })).toMatchObject({ labels: ["breakfast"], needsAi: false });
+      expect(applyAiMealResponse(implicit, {
+        labels: [{ label: "breakfast", confidence: 0.5, evidence: "Maybe breakfast." }]
+      })).toEqual(implicit);
+      expect(validateAiMealResponse({ labels: [] })).toEqual({ labels: [] });
+      expect(validateAiMealResponse({ labels: [{ label: "brunch", confidence: 1, evidence: "Invalid taxonomy." }] })).toBeNull();
+    });
+
+    it("caches validated AI responses by metadata and classifier version", async () => {
+      const directory = await mkdtemp(path.join(os.tmpdir(), "meal-cache-"));
+      const cachePath = path.join(directory, "cache.json");
+      const input = { title: "Poha", description: "Flattened rice" };
+      const key = mealClassificationCacheKey(input);
+      await writeAiMealCache(cachePath, {
+        entries: { [key]: { labels: [{ label: "breakfast", confidence: 0.9, evidence: "Customary morning dish." }] } }
+      });
+      const cache = await readAiMealCache(cachePath);
+      expect(cache.entries[key]?.labels[0].label).toBe("breakfast");
+      expect(mealClassificationCacheKey({ ...input, title: "Dinner Poha" })).not.toBe(key);
+      await rm(directory, { recursive: true });
+    });
+  });
+
+  describe("classifyMealTypes orchestration", () => {
+    const implicitVideo: VideoSource = {
+      ...video,
+      videoId: "implicit-poha",
+      title: "Traditional Poha",
+      description: "Flattened rice with peanuts."
+    };
+    const overrides = { include: [], exclude: [], corrections: {} };
+    const previousClassifierKey = process.env.MEAL_CLASSIFIER_API_KEY;
+
+    afterEach(() => {
+      if (previousClassifierKey === undefined) delete process.env.MEAL_CLASSIFIER_API_KEY;
+      else process.env.MEAL_CLASSIFIER_API_KEY = previousClassifierKey;
+    });
+
+    it("reuses a cache hit without calling the AI classifier", async () => {
+      process.env.MEAL_CLASSIFIER_API_KEY = "test-key";
+      const key = mealClassificationCacheKey({ title: implicitVideo.title, description: implicitVideo.description });
+      const readAiMealCache = vi.fn().mockResolvedValue({
+        entries: { [key]: { labels: [{ label: "breakfast", confidence: 0.9, evidence: "Customary morning dish." }] } }
+      });
+      const writeAiMealCache = vi.fn().mockResolvedValue(undefined);
+      const classifyMealWithAi = vi.fn();
+
+      const classifications = await classifyMealTypes([implicitVideo], overrides, {
+        readAiMealCache,
+        writeAiMealCache,
+        classifyMealWithAi
+      });
+
+      expect(classifyMealWithAi).not.toHaveBeenCalled();
+      expect(writeAiMealCache).not.toHaveBeenCalled();
+      expect(classifications.get(implicitVideo.videoId)).toMatchObject({ labels: ["breakfast"], needsAi: false });
+    });
+
+    it("leaves the classification unresolved when the AI response is invalid", async () => {
+      process.env.MEAL_CLASSIFIER_API_KEY = "test-key";
+      const readAiMealCache = vi.fn().mockResolvedValue({ entries: {} });
+      const writeAiMealCache = vi.fn().mockResolvedValue(undefined);
+      const classifyMealWithAi = vi.fn().mockResolvedValue(null);
+
+      const classifications = await classifyMealTypes([implicitVideo], overrides, {
+        readAiMealCache,
+        writeAiMealCache,
+        classifyMealWithAi
+      });
+
+      expect(classifyMealWithAi).toHaveBeenCalledTimes(1);
+      expect(writeAiMealCache).not.toHaveBeenCalled();
+      expect(classifications.get(implicitVideo.videoId)).toMatchObject({ labels: [], needsAi: true });
+    });
+
+    it("leaves the classification unresolved when the AI request throws", async () => {
+      process.env.MEAL_CLASSIFIER_API_KEY = "test-key";
+      const readAiMealCache = vi.fn().mockResolvedValue({ entries: {} });
+      const writeAiMealCache = vi.fn().mockResolvedValue(undefined);
+      const classifyMealWithAi = vi.fn().mockRejectedValue(new Error("network error"));
+
+      const classifications = await classifyMealTypes([implicitVideo], overrides, {
+        readAiMealCache,
+        writeAiMealCache,
+        classifyMealWithAi
+      });
+
+      expect(classifyMealWithAi).toHaveBeenCalledTimes(1);
+      expect(writeAiMealCache).not.toHaveBeenCalled();
+      expect(classifications.get(implicitVideo.videoId)).toMatchObject({ labels: [], needsAi: true });
+    });
   });
 
   it("infers time, meal type, and cuisine", () => {

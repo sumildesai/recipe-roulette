@@ -1,5 +1,6 @@
 import type { Cuisine, MealType, Recipe } from "../lib/types";
-import { CUISINE_RULES, MEAL_TYPE_RULES, type ClassificationRule } from "./classification-taxonomy";
+import { CUISINE_RULES, type ClassificationRule } from "./classification-taxonomy";
+import { inferMealClassification, type MealClassification } from "./meal-classification";
 
 export const CHANNELS = [
   { id: "UCe2JAC5FUfbxLCfAvBWmNJA", name: "Your Food Lab" },
@@ -53,9 +54,7 @@ export function inferCookingTime(text: string): number | null {
 }
 
 export function inferMealTypes(text: string): MealType[] {
-  const result = new Set<MealType>();
-  for (const rule of MEAL_TYPE_RULES) if (matchesRule(text, rule)) result.add(rule.value);
-  return [...result];
+  return inferMealClassification({ title: text, description: "" }).labels;
 }
 
 export function inferCuisine(text: string): Cuisine | null {
@@ -68,7 +67,14 @@ export function isRecipeVideo(video: VideoSource): boolean {
   return video.durationSeconds !== null && video.durationSeconds >= 90 && RECIPE_SIGNAL.test(text);
 }
 
-export function normalizeVideo(video: VideoSource, correction: RecipeCorrection = {}): NormalizedRecipe {
+export function normalizeVideo(
+  video: VideoSource,
+  correction: RecipeCorrection = {},
+  mealClassification: MealClassification = inferMealClassification({
+    title: correction.title ?? video.title,
+    description: correction.description ?? video.description
+  })
+): NormalizedRecipe {
   const text = `${correction.title ?? video.title} ${correction.description ?? video.description}`;
   return {
     id: video.videoId,
@@ -82,25 +88,36 @@ export function normalizeVideo(video: VideoSource, correction: RecipeCorrection 
     videoUrl: `https://www.youtube.com/watch?v=${video.videoId}`,
     durationSeconds: video.durationSeconds,
     cookingTimeMinutes: correction.cookingTimeMinutes !== undefined ? correction.cookingTimeMinutes : inferCookingTime(text),
-    mealTypes: correction.mealTypes ?? inferMealTypes(text),
+    mealTypes: correction.mealTypes ?? mealClassification.labels,
     cuisine: correction.cuisine ?? inferCuisine(text),
     vegetarian: correction.vegetarian !== undefined ? correction.vegetarian : classifyVegetarian(text)
   };
 }
 
-export function applyOverrides(videos: VideoSource[], overrides: CatalogOverrides): Recipe[] {
+export function isCatalogCandidate(
+  video: VideoSource,
+  overrides: CatalogOverrides,
+  excluded: ReadonlySet<string> = new Set(overrides.exclude),
+  included: ReadonlySet<string> = new Set(overrides.include)
+): boolean {
+  const correction = overrides.corrections[video.videoId];
+  if (excluded.has(video.videoId) || correction?.vegetarian === false) return false;
+  if (included.has(video.videoId) || correction?.vegetarian === true) return true;
+  const text = `${correction?.title ?? video.title} ${correction?.description ?? video.description}`;
+  return isRecipeVideo(video) && classifyVegetarian(text) === true;
+}
+
+export function applyOverrides(
+  videos: VideoSource[],
+  overrides: CatalogOverrides,
+  mealClassifications = new Map<string, MealClassification>()
+): Recipe[] {
   const excluded = new Set(overrides.exclude);
   const included = new Set(overrides.include);
   return videos
-    .filter((video) => {
-      const correction = overrides.corrections[video.videoId];
-      if (excluded.has(video.videoId) || correction?.vegetarian === false) return false;
-      if (included.has(video.videoId) || correction?.vegetarian === true) return true;
-      const text = `${correction?.title ?? video.title} ${correction?.description ?? video.description}`;
-      return isRecipeVideo(video) && classifyVegetarian(text) === true;
-    })
+    .filter((video) => isCatalogCandidate(video, overrides, excluded, included))
     .map((video) => ({
-      ...normalizeVideo(video, overrides.corrections[video.videoId]),
+      ...normalizeVideo(video, overrides.corrections[video.videoId], mealClassifications.get(video.videoId)),
       vegetarian: true as const
     }))
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id));
