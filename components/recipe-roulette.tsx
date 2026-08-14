@@ -93,9 +93,10 @@ export function RecipeRoulette() {
       </header>
 
       <section className="controls" aria-label="Recipe filters">
-        <label>
+        <label htmlFor="search-recipes">
           Search recipes
           <input
+            id="search-recipes"
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
