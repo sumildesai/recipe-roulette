@@ -2,7 +2,14 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CUISINES, MEAL_TYPES, type Catalog, type Recipe } from "@/lib/types";
+import {
+  CUISINES,
+  MEAL_TYPES,
+  type Catalog,
+  type Cuisine,
+  type MealType,
+  type Recipe
+} from "@/lib/types";
 import { filterRecipes, pickRandomRecipe, searchRecipes } from "@/lib/roulette";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -12,9 +19,9 @@ const WHEEL_COLORS = ["#ff6b35", "#f7c548", "#39a96b", "#4b7bec", "#a55eea", "#e
 export function RecipeRoulette() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [error, setError] = useState("");
-  const [mealType, setMealType] = useState("");
-  const [cuisine, setCuisine] = useState("");
-  const [source, setSource] = useState("");
+  const [mealTypes, setMealTypes] = useState<MealType[]>([]);
+  const [cuisines, setCuisines] = useState<Cuisine[]>([]);
+  const [sources, setSources] = useState<string[]>([]);
   const [maxTime, setMaxTime] = useState(0);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -58,14 +65,14 @@ export function RecipeRoulette() {
     () =>
       searchRecipes(
         filterRecipes(catalog?.recipes ?? [], {
-          mealType,
-          cuisine,
-          source,
+          mealTypes,
+          cuisines,
+          sources,
           maxCookingTime: maxTime === 0 ? null : maxTime
         }),
         debouncedQuery
       ),
-    [catalog, cuisine, debouncedQuery, maxTime, mealType, source]
+    [catalog, cuisines, debouncedQuery, maxTime, mealTypes, sources]
   );
 
   useEffect(() => {
@@ -114,27 +121,25 @@ export function RecipeRoulette() {
             aria-describedby="eligible-count"
           />
         </label>
-        <label>
-          Meal type
-          <select value={mealType} onChange={(event) => setMealType(event.target.value)}>
-            <option value="">Any meal</option>
-            {MEAL_TYPES.map((meal) => <option key={meal} value={meal}>{capitalize(meal)}</option>)}
-          </select>
-        </label>
-        <label>
-          Cuisine
-          <select value={cuisine} onChange={(event) => setCuisine(event.target.value)}>
-            <option value="">Any cuisine</option>
-            {CUISINES.map((item) => <option key={item}>{item}</option>)}
-          </select>
-        </label>
-        <label>
-          Source
-          <select value={source} onChange={(event) => setSource(event.target.value)}>
-            <option value="">Any source</option>
-            {sourceOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-          </select>
-        </label>
+        <CheckboxGroup
+          legend="Meal type"
+          options={MEAL_TYPES}
+          selected={mealTypes}
+          formatLabel={capitalize}
+          onChange={setMealTypes}
+        />
+        <CheckboxGroup
+          legend="Cuisine"
+          options={CUISINES}
+          selected={cuisines}
+          onChange={setCuisines}
+        />
+        <CheckboxGroup
+          legend="Source"
+          options={sourceOptions}
+          selected={sources}
+          onChange={setSources}
+        />
         <label className="time-filter">
           <span>Maximum cooking time <strong>{maxTime === 0 ? "No limit" : `${maxTime} min`}</strong></span>
           <input
@@ -213,4 +218,44 @@ export function RecipeRoulette() {
 
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+interface CheckboxGroupProps<T extends string> {
+  legend: string;
+  options: readonly T[];
+  selected: readonly T[];
+  formatLabel?: (value: T) => string;
+  onChange: (values: T[]) => void;
+}
+
+function CheckboxGroup<T extends string>({
+  legend,
+  options,
+  selected,
+  formatLabel = (value) => value,
+  onChange
+}: CheckboxGroupProps<T>) {
+  return (
+    <fieldset className="checkbox-group">
+      <legend>{legend}</legend>
+      <div>
+        {options.map((option) => (
+          <label key={option}>
+            <input
+              type="checkbox"
+              checked={selected.includes(option)}
+              onChange={(event) =>
+                onChange(
+                  event.target.checked
+                    ? [...selected, option]
+                    : selected.filter((value) => value !== option)
+                )
+              }
+            />
+            {formatLabel(option)}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
 }

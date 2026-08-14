@@ -26,36 +26,72 @@ const recipe = (
 });
 
 describe("recipe filtering", () => {
-  const recipes = [recipe("fast", 20), recipe("slow", 90), recipe("unknown", null), recipe("italian", 30, "Italian")];
+  const recipes = [
+    recipe("fast", 20),
+    recipe("slow", 90),
+    recipe("unknown", null),
+    recipe("italian", 30, "Italian", { mealTypes: ["lunch"] })
+  ];
 
-  it("keeps unknown times with no cap and excludes them with an active cap", () => {
-    expect(filterRecipes(recipes, { mealType: "", cuisine: "", source: "", maxCookingTime: null })).toHaveLength(4);
-    expect(filterRecipes(recipes, { mealType: "", cuisine: "", source: "", maxCookingTime: 30 }).map(({ id }) => id))
+  it("treats empty groups as unrestricted and composes with maximum time", () => {
+    expect(filterRecipes(recipes, { mealTypes: [], cuisines: [], sources: [], maxCookingTime: null }))
+      .toHaveLength(4);
+    expect(filterRecipes(recipes, { mealTypes: [], cuisines: [], sources: [], maxCookingTime: 30 }).map(({ id }) => id))
       .toEqual(["fast", "italian"]);
   });
 
-  it("combines meal and cuisine filters", () => {
-    expect(filterRecipes(recipes, { mealType: "dinner", cuisine: "Italian", source: "", maxCookingTime: null }).map(({ id }) => id))
-      .toEqual(["italian"]);
+  it("uses OR semantics for multiple values in one group", () => {
+    expect(filterRecipes(recipes, {
+      mealTypes: ["dinner", "lunch"],
+      cuisines: [],
+      sources: [],
+      maxCookingTime: null
+    }).map(({ id }) => id)).toEqual(["fast", "slow", "unknown", "italian"]);
   });
 
-  it("filters by source channel", () => {
+  it("uses AND semantics across groups", () => {
     const sourced = [
       recipe("yfl", 20, "Indian", { channelName: "Your Food Lab" }),
-      recipe("rb", 20, "Indian", { channelName: "Ranveer Brar" })
+      recipe("rb", 20, "Indian", { channelName: "Ranveer Brar" }),
+      recipe("italian-yfl", 20, "Italian", { channelName: "Your Food Lab" })
     ];
-    expect(filterRecipes(sourced, { mealType: "", cuisine: "", source: "Ranveer Brar", maxCookingTime: null }).map(({ id }) => id))
-      .toEqual(["rb"]);
+    expect(filterRecipes(sourced, {
+      mealTypes: ["dinner"],
+      cuisines: ["Indian", "Italian"],
+      sources: ["Your Food Lab"],
+      maxCookingTime: null
+    }).map(({ id }) => id)).toEqual(["yfl", "italian-yfl"]);
   });
 
-  it("combines source with other filters", () => {
+  it("combines categorical groups with maximum time", () => {
     const sourced = [
       recipe("yfl-fast", 20, "Indian", { channelName: "Your Food Lab" }),
       recipe("yfl-slow", 60, "Indian", { channelName: "Your Food Lab" }),
       recipe("rb-fast", 20, "Indian", { channelName: "Ranveer Brar" })
     ];
-    expect(filterRecipes(sourced, { mealType: "dinner", cuisine: "Indian", source: "Your Food Lab", maxCookingTime: 30 }).map(({ id }) => id))
+    expect(filterRecipes(sourced, {
+      mealTypes: ["dinner"],
+      cuisines: ["Indian"],
+      sources: ["Your Food Lab"],
+      maxCookingTime: 30
+    }).map(({ id }) => id))
       .toEqual(["yfl-fast"]);
+  });
+
+  it("does not mutate caller-owned filter collections", () => {
+    const filters = {
+      mealTypes: ["dinner"] as const,
+      cuisines: ["Indian"] as const,
+      sources: ["Chef"] as const,
+      maxCookingTime: null
+    };
+    filterRecipes(recipes, filters);
+    expect(filters).toEqual({
+      mealTypes: ["dinner"],
+      cuisines: ["Indian"],
+      sources: ["Chef"],
+      maxCookingTime: null
+    });
   });
 });
 
