@@ -35,18 +35,11 @@ type NormalizedRecipe = Omit<Recipe, "vegetarian"> & {
   vegetarian: boolean | null;
 };
 
-const NON_VEG = /\b(chicken|mutton|lamb|fish|prawn|shrimp|egg|anda|meat|keema|kebab|seafood|crab|salmon|tuna|beef|pork)\b/i;
-const VEG_POSITIVE = /\b(vegetarian|veg recipe|pure veg|paneer|tofu|mushroom|aloo|potato|dal|daal|chana|chickpea|rajma|besan|idli|dosa|samosa|pakoda|pakora|sabzi|cauliflower|lauki|kofta)\b/i;
+const NON_VEG = /\b(chicken|mutton|lamb|fish|prawn|shrimp|meat|keema|kebab|seafood|crab|salmon|tuna|beef|pork)\b/i;
 const RECIPE_SIGNAL = /\b(recipe|cook|masala|curry|paneer|biryani|pasta|chaat|soup|cake|bread|paratha|naan|dal|sabzi|rice|noodles|dessert)\b/i;
 
-export function classifyVegetarian(text: string): boolean | null {
-  const normalized = text
-    .replace(/\beggless\b/gi, "")
-    .replace(/\begg[- ]free\b/gi, "")
-    .replace(/\bwithout eggs?\b/gi, "");
-  if (NON_VEG.test(normalized)) return false;
-  if (VEG_POSITIVE.test(normalized)) return true;
-  return null;
+export function classifyVegetarian(text: string): boolean {
+  return !NON_VEG.test(text);
 }
 
 export function inferCookingTime(text: string): number | null {

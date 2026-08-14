@@ -21,11 +21,13 @@ const video: VideoSource = {
 };
 
 describe("catalog inference", () => {
-  it("classifies vegetarian recipes conservatively", () => {
+  it("classifies recipes as vegetarian unless they contain a non-vegetarian signal", () => {
     expect(classifyVegetarian("pure veg paneer recipe")).toBe(true);
     expect(classifyVegetarian("paneer and chicken curry")).toBe(false);
+    expect(classifyVegetarian("egg curry recipe")).toBe(true);
+    expect(classifyVegetarian("anda chicken curry")).toBe(false);
     expect(classifyVegetarian("eggless besan bhurji")).toBe(true);
-    expect(classifyVegetarian("tomato soup")).toBeNull();
+    expect(classifyVegetarian("tomato soup")).toBe(true);
   });
 
   it("infers time, meal type, and cuisine", () => {
@@ -43,7 +45,7 @@ describe("catalog inference", () => {
 });
 
 describe("catalog overrides", () => {
-  it("keeps only clear vegetarian recipes without an override", () => {
+  it("keeps recipes without non-vegetarian signals", () => {
     const ambiguous = {
       ...video,
       videoId: "ambiguous",
@@ -62,7 +64,7 @@ describe("catalog overrides", () => {
       corrections: {}
     });
 
-    expect(recipes.map(({ id }) => id)).toEqual(["recipe-1"]);
+    expect(recipes.map(({ id }) => id)).toEqual(["ambiguous", "recipe-1"]);
   });
 
   it("forces inclusion, exclusion, and metadata corrections", () => {
