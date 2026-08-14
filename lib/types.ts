@@ -4,6 +4,23 @@ export const CUISINES = ["Indian", "Indo-Chinese", "Italian", "Middle Eastern", 
 export type MealType = (typeof MEAL_TYPES)[number];
 export type Cuisine = (typeof CUISINES)[number];
 
+export type RecipeDurationOverallSource = "explicit-total" | "active-components" | "unlabeled-total" | "none";
+
+export interface DurationRangeMinutes {
+  minMinutes: number;
+  maxMinutes: number;
+}
+
+export interface RecipeDurations {
+  preparation: DurationRangeMinutes | null;
+  cooking: DurationRangeMinutes | null;
+  resting: DurationRangeMinutes | null;
+  marination: DurationRangeMinutes | null;
+  total: DurationRangeMinutes | null;
+  overall: DurationRangeMinutes | null;
+  overallSource: RecipeDurationOverallSource;
+}
+
 export interface Recipe {
   id: string;
   videoId: string;
@@ -16,6 +33,7 @@ export interface Recipe {
   videoUrl: string;
   durationSeconds: number | null;
   cookingTimeMinutes: number | null;
+  durations?: RecipeDurations;
   mealTypes: MealType[];
   cuisine: Cuisine | null;
   vegetarian: true;
