@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "17 5 * * 1"
+    - cron: "17 5 * * 1,5"
   workflow_dispatch:
 
 permissions:
@@ -27,17 +27,44 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Restore last generated catalog
+        id: catalog-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: public/recipes.json
+          key: recipes-catalog-v1-${{ github.run_id }}
+          restore-keys: recipes-catalog-v1-
       - name: Refresh catalog from official channels
+        if: github.event_name == 'schedule'
         run: npm run catalog:generate
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
       - name: Verify refreshed catalog
+        if: github.event_name == 'schedule'
         run: |
           node -e "
             const catalog = require('./public/recipes.json');
             if (catalog.source !== 'youtube') throw new Error('Catalog was not refreshed from YouTube');
             if (catalog.recipes.length <= 5) throw new Error('Refreshed catalog unexpectedly contains five or fewer recipes');
             console.log('Verified refreshed catalog with ' + catalog.recipes.length + ' recipes.');
+          "
+      - name: Save generated catalog for later deployments
+        if: github.event_name == 'schedule'
+        uses: actions/cache/save@v4
+        with:
+          path: public/recipes.json
+          key: recipes-catalog-v1-${{ github.run_id }}
+      - name: Report catalog in use
+        if: github.event_name != 'schedule'
+        env:
+          RESTORED_KEY: ${{ steps.catalog-cache.outputs.cache-matched-key }}
+        run: |
+          node -e "
+            const catalog = require('./public/recipes.json');
+            const restored = Boolean(process.env.RESTORED_KEY);
+            console.log(restored
+              ? 'Reusing the last generated catalog with ' + catalog.recipes.length + ' recipes.'
+              : 'No generated catalog cached yet; deploying the checked-in seed catalog with ' + catalog.recipes.length + ' recipes.');
           "
       - run: npm test
       - run: npm run lint
