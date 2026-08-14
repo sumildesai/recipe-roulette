@@ -40,12 +40,16 @@ export interface AiMealCache {
   entries: Record<string, AiMealResponse>;
 }
 
-const BOILERPLATE = /\b(?:perfect|ideal|great|suitable|works?|good)\b[^.!?\n]{0,120}\b(?:breakfast|lunch|dinner)\b/i;
-const HASH_TAG = /#\w+/;
+const BOILERPLATE_SOURCE = "\\b(?:perfect|ideal|great|suitable|works?|good)\\b[^.!?\\n]{0,120}\\b(?:breakfast|lunch|dinner)\\b";
+const BOILERPLATE = new RegExp(BOILERPLATE_SOURCE, "i");
+const BOILERPLATE_GLOBAL = new RegExp(BOILERPLATE_SOURCE, "gi");
+const HASH_TAG_SOURCE = "#\\w+";
+const HASH_TAG = new RegExp(HASH_TAG_SOURCE);
+const HASH_TAG_GLOBAL = new RegExp(HASH_TAG_SOURCE, "g");
 const REGEX_CACHE = new Map<string, RegExp>();
 
 export function inferMealClassification({ title, description }: MealClassificationInput): MealClassification {
-  const titleEvidence = evidenceForText(title, "title", 1);
+  const titleEvidence = evidenceForText(sanitizeWeakSignals(title), "title", 1, title.trim());
   const metadataEvidence = structuredEvidence(description);
   const titleLabels = new Set(titleEvidence.map(({ label }) => label));
   const metadataLabels = new Set(metadataEvidence.map(({ label }) => label));
@@ -182,7 +186,7 @@ export async function classifyMealWithAi(input: MealClassificationInput, apiKey:
 function structuredEvidence(description: string): MealClassificationEvidence[] {
   const evidence: MealClassificationEvidence[] = [];
   for (const match of description.matchAll(/(?:^|\n)\s*(?:course|meal(?:\s*type)?|category)\s*:\s*([^\n]+)/gi)) {
-    evidence.push(...evidenceForText(match[1], "structured_metadata", 1, match[0].trim()));
+    evidence.push(...evidenceForText(sanitizeWeakSignals(match[1]), "structured_metadata", 1, match[0].trim()));
   }
   return evidence;
 }
@@ -191,6 +195,10 @@ function proseEvidenceFor(description: string): MealClassificationEvidence[] {
   return description
     .split(/[.!?\n]+/)
     .flatMap((sentence) => (BOILERPLATE.test(sentence) || HASH_TAG.test(sentence) ? [] : evidenceForText(sentence, "prose", 0.7)));
+}
+
+function sanitizeWeakSignals(text: string): string {
+  return text.replace(BOILERPLATE_GLOBAL, " ").replace(HASH_TAG_GLOBAL, " ");
 }
 
 function evidenceForText(
