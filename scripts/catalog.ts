@@ -1,4 +1,5 @@
 import type { Cuisine, MealType, Recipe } from "../lib/types";
+import { CUISINE_RULES, MEAL_TYPE_RULES, type ClassificationRule } from "./classification-taxonomy";
 
 export const CHANNELS = [
   { id: "UCe2JAC5FUfbxLCfAvBWmNJA", name: "Your Food Lab" },
@@ -34,6 +35,7 @@ export interface CatalogOverrides {
 type NormalizedRecipe = Omit<Recipe, "vegetarian"> & {
   vegetarian: boolean | null;
 };
+const REGEX_CACHE = new Map<string, RegExp>();
 
 const NON_VEG = /\b(chicken|mutton|lamb|fish|prawn|shrimp|meat|keema|kebab|seafood|crab|salmon|tuna|beef|pork)\b/i;
 const RECIPE_SIGNAL = /\b(recipe|cook|masala|curry|paneer|biryani|pasta|chaat|soup|cake|bread|paratha|naan|dal|sabzi|rice|noodles|dessert)\b/i;
@@ -52,19 +54,12 @@ export function inferCookingTime(text: string): number | null {
 
 export function inferMealTypes(text: string): MealType[] {
   const result = new Set<MealType>();
-  if (/\b(breakfast|nashta|morning)\b/i.test(text)) result.add("breakfast");
-  if (/\b(lunch|tiffin)\b/i.test(text)) result.add("lunch");
-  if (/\b(dinner|main course)\b/i.test(text)) result.add("dinner");
-  if (/\b(snack|chaat|starter|appetizer|tea time)\b/i.test(text)) result.add("snack");
+  for (const rule of MEAL_TYPE_RULES) if (matchesRule(text, rule)) result.add(rule.value);
   return [...result];
 }
 
 export function inferCuisine(text: string): Cuisine | null {
-  if (/\b(chinese|schezwan|manchurian|hakka)\b/i.test(text)) return "Indo-Chinese";
-  if (/\b(italian|pasta|pizza|risotto)\b/i.test(text)) return "Italian";
-  if (/\b(mexican|taco|burrito|quesadilla)\b/i.test(text)) return "Mexican";
-  if (/\b(middle eastern|arabic|falafel|hummus|shawarma)\b/i.test(text)) return "Middle Eastern";
-  if (/\b(indian|masala|paneer|biryani|dal|sabzi|paratha|chaat|tikka|curry|pulao|dosa|idli)\b/i.test(text)) return "Indian";
+  for (const rule of CUISINE_RULES) if (matchesRule(text, rule)) return rule.value;
   return null;
 }
 
@@ -119,4 +114,26 @@ export function parseIsoDuration(value: string): number | null {
 
 function cleanText(value: string): string {
   return value.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+}
+
+function matchesRule<T extends string>(text: string, rule: ClassificationRule<T>): boolean {
+  return matchesAnyAlias(text, rule.aliases) && !matchesAnyAlias(text, rule.exclusions);
+}
+
+function matchesAnyAlias(text: string, aliases: readonly string[] | undefined): boolean {
+  if (!aliases || aliases.length === 0) return false;
+  return aliases.some((alias) => createBoundarySafeRegex(alias).test(text));
+}
+
+function createBoundarySafeRegex(alias: string): RegExp {
+  const cachedRegex = REGEX_CACHE.get(alias);
+  if (cachedRegex) return cachedRegex;
+
+  const escapedAlias = alias
+    .trim()
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/\s+/g, "\\s+");
+  const regex = new RegExp(`\\b${escapedAlias}\\b`, "i");
+  REGEX_CACHE.set(alias, regex);
+  return regex;
 }

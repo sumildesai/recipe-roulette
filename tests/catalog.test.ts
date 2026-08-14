@@ -35,7 +35,15 @@ describe("catalog inference", () => {
     expect(inferCookingTime("Cooking time: 20-25 minutes")).toBe(25);
     expect(inferCookingTime("A simple family recipe")).toBeNull();
     expect(inferMealTypes("Breakfast snack for tea time")).toEqual(["breakfast", "snack"]);
+    expect(inferMealTypes("Quick brunch bowl")).toEqual(["breakfast"]);
+    expect(inferMealTypes("Kitchen starter pack for students")).toEqual([]);
     expect(inferCuisine("Schezwan Hakka noodles")).toBe("Indo-Chinese");
+    expect(inferCuisine("Schezwan paneer fried rice")).toBe("Indo-Chinese");
+    expect(inferCuisine("Chettinad vegetable curry")).toBe("Indian");
+    expect(inferCuisine("Thai style tofu bowl")).toBe("Global");
+    expect(inferCuisine("Thai fried rice recipe")).toBe("Global");
+    expect(inferCuisine("Complete thali platter menu")).toBeNull();
+    expect(inferCuisine("Watch this kitchen tour")).toBeNull();
   });
 
   it("parses ISO 8601 video durations", () => {

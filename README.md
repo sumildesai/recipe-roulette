@@ -30,7 +30,7 @@ YOUTUBE_API_KEY=your-key npm run catalog:generate
 
 The key is read only by `scripts/generate-catalog.ts`. It is never referenced by client code, stored in the catalog, or exposed through a `NEXT_PUBLIC_` variable.
 
-The generator fetches each channel's uploads, normalizes text and durations, excludes short/non-recipe videos, infers meal type, cuisine, and stated cooking time, and writes deterministic JSON to `public/recipes.json`. Vegetarian classification is intentionally conservative: explicit meat terms produce `false`, clear vegetarian signals produce `true`, and ambiguous recipes remain `null`. Unknown cooking times stay available when the UI has no time cap and are excluded when a cap is active.
+The generator fetches each channel's uploads, normalizes text and durations, excludes short/non-recipe videos, infers meal type, cuisine, and stated cooking time, and writes deterministic JSON to `public/recipes.json`. Classification taxonomy now lives in `scripts/classification-taxonomy.ts`, where meal/cuisine aliases are type-checked against supported `MealType` and `Cuisine` values. Cuisine policy is explicit: recognized non-core cuisine aliases map to `Global`, while recipes with no cuisine signal remain unclassified (`null`). Vegetarian classification is intentionally conservative: explicit meat terms produce `false`, clear vegetarian signals produce `true`, and ambiguous recipes remain `null`. Unknown cooking times stay available when the UI has no time cap and are excluded when a cap is active.
 
 ### Overrides
 
