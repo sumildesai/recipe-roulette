@@ -14,6 +14,7 @@ export function RecipeRoulette() {
   const [error, setError] = useState("");
   const [mealType, setMealType] = useState("");
   const [cuisine, setCuisine] = useState("");
+  const [source, setSource] = useState("");
   const [maxTime, setMaxTime] = useState(0);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -45,17 +46,26 @@ export function RecipeRoulette() {
     return () => window.clearTimeout(timeout);
   }, [query]);
 
+  const sourceOptions = useMemo(
+    () =>
+      Array.from(new Set((catalog?.recipes ?? []).map((recipe) => recipe.channelName))).sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [catalog]
+  );
+
   const filtered = useMemo(
     () =>
       searchRecipes(
         filterRecipes(catalog?.recipes ?? [], {
           mealType,
           cuisine,
+          source,
           maxCookingTime: maxTime === 0 ? null : maxTime
         }),
         debouncedQuery
       ),
-    [catalog, cuisine, debouncedQuery, maxTime, mealType]
+    [catalog, cuisine, debouncedQuery, maxTime, mealType, source]
   );
 
   useEffect(() => {
@@ -116,6 +126,13 @@ export function RecipeRoulette() {
           <select value={cuisine} onChange={(event) => setCuisine(event.target.value)}>
             <option value="">Any cuisine</option>
             {CUISINES.map((item) => <option key={item}>{item}</option>)}
+          </select>
+        </label>
+        <label>
+          Source
+          <select value={source} onChange={(event) => setSource(event.target.value)}>
+            <option value="">Any source</option>
+            {sourceOptions.map((option) => <option key={option} value={option}>{option}</option>)}
           </select>
         </label>
         <label className="time-filter">
