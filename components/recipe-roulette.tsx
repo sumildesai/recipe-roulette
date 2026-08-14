@@ -237,9 +237,32 @@ function CheckboxGroup<T extends string>({
 }: CheckboxGroupProps<T>) {
   const summary =
     selected.length === 0 ? "Any" : selected.map((value) => formatLabel(value)).join(", ");
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+
+  useEffect(() => {
+    function closeIfOutside(event: PointerEvent) {
+      const element = detailsRef.current;
+      if (!element || !element.open) return;
+      if (event.target instanceof Node && element.contains(event.target)) return;
+      element.open = false;
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      const element = detailsRef.current;
+      if (element?.open) element.open = false;
+    }
+
+    document.addEventListener("pointerdown", closeIfOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeIfOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
 
   return (
-    <details className="checkbox-dropdown">
+    <details className="checkbox-dropdown" ref={detailsRef}>
       <summary>
         <span className="checkbox-dropdown-legend">{legend}</span>
         <span className="checkbox-dropdown-summary">{summary}</span>
