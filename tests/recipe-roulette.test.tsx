@@ -29,6 +29,29 @@ const catalog: Catalog = {
   ]
 };
 
+const searchCatalog: Catalog = {
+  ...catalog,
+  recipes: [
+    catalog.recipes[0],
+    {
+      id: "two",
+      videoId: "two",
+      title: "Test Biryani",
+      description: "Rice and spices",
+      channelId: "channel2",
+      channelName: "Ranveer Brar",
+      publishedAt: "2026-01-01T00:00:00.000Z",
+      thumbnailUrl: "https://example.com/two.jpg",
+      videoUrl: "https://youtube.com/watch?v=two",
+      durationSeconds: 900,
+      cookingTimeMinutes: 45,
+      mealTypes: ["dinner"],
+      cuisine: "Indian",
+      vegetarian: true
+    }
+  ]
+};
+
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
     ok: true,
@@ -70,5 +93,44 @@ describe("RecipeRoulette", () => {
     vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 500 } as Response);
     render(<RecipeRoulette />);
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("could not be loaded"));
+  });
+
+  it("narrows the eligible count when typing a search query", async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(searchCatalog)
+    } as Response);
+    render(<RecipeRoulette />);
+    await screen.findByText("2 recipes ready to spin");
+    fireEvent.change(screen.getByLabelText("Search recipes"), { target: { value: "biryani" } });
+    expect(await screen.findByText("1 recipe ready to spin")).toBeInTheDocument();
+  });
+
+  it("shows the empty state when no recipe matches the query", async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(searchCatalog)
+    } as Response);
+    render(<RecipeRoulette />);
+    await screen.findByText("2 recipes ready to spin");
+    fireEvent.change(screen.getByLabelText("Search recipes"), { target: { value: "sushi" } });
+    expect(await screen.findByText(/No recipes match/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Spin" })).toBeDisabled();
+  });
+
+  it("clears the current selection when it no longer matches the query", async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(searchCatalog)
+    } as Response);
+    render(<RecipeRoulette />);
+    await screen.findByText("2 recipes ready to spin");
+    fireEvent.change(screen.getByLabelText("Search recipes"), { target: { value: "paneer" } });
+    await screen.findByText("1 recipe ready to spin");
+    const button = screen.getByRole("button", { name: "Spin" });
+    fireEvent.click(button);
+    expect(await screen.findByRole("heading", { name: "Test Paneer" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Search recipes"), { target: { value: "biryani" } });
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Test Paneer" })).not.toBeInTheDocument());
   });
 });

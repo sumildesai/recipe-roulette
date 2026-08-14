@@ -21,6 +21,32 @@ export function filterRecipes(recipes: Recipe[], filters: RecipeFilters): Recipe
   });
 }
 
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+function tokenize(value: string): string[] {
+  const normalized = normalizeSearchText(value);
+  return normalized.length === 0 ? [] : normalized.split(/\s+/);
+}
+
+export function searchRecipes(recipes: Recipe[], query: string): Recipe[] {
+  const tokens = tokenize(query);
+  if (tokens.length === 0) return recipes;
+
+  return recipes.filter((recipe) => {
+    const haystack = normalizeSearchText(
+      [recipe.title, recipe.description, recipe.cuisine ?? "", recipe.channelName].join(" ")
+    );
+    return tokens.every((token) => haystack.includes(token));
+  });
+}
+
 export function randomIndex(length: number, randomUint32: () => number = secureUint32): number {
   if (!Number.isSafeInteger(length) || length <= 0) {
     throw new RangeError("length must be a positive safe integer");
