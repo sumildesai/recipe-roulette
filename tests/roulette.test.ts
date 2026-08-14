@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { filterRecipes, pickRandomRecipe, randomIndex } from "@/lib/roulette";
+import { filterRecipes, pickRandomRecipe, randomIndex, searchRecipes } from "@/lib/roulette";
 import type { Recipe } from "@/lib/types";
 
-const recipe = (id: string, time: number | null, cuisine = "Indian"): Recipe => ({
+const recipe = (
+  id: string,
+  time: number | null,
+  cuisine = "Indian",
+  overrides: Partial<Recipe> = {}
+): Recipe => ({
   id,
   videoId: id,
   title: id,
@@ -16,7 +21,8 @@ const recipe = (id: string, time: number | null, cuisine = "Indian"): Recipe => 
   cookingTimeMinutes: time,
   mealTypes: ["dinner"],
   cuisine: cuisine as Recipe["cuisine"],
-  vegetarian: true
+  vegetarian: true,
+  ...overrides
 });
 
 describe("recipe filtering", () => {
@@ -31,6 +37,60 @@ describe("recipe filtering", () => {
   it("combines meal and cuisine filters", () => {
     expect(filterRecipes(recipes, { mealType: "dinner", cuisine: "Italian", maxCookingTime: null }).map(({ id }) => id))
       .toEqual(["italian"]);
+  });
+});
+
+describe("recipe search", () => {
+  const paneer = recipe("paneer", 20, "Indian", {
+    title: "Paneer Tikka",
+    description: "A smoky grilled paneer starter",
+    channelName: "Your Food Lab"
+  });
+  const biryani = recipe("biryani", 45, "Indian", {
+    title: "Chicken Biryani",
+    description: "Layered rice dish",
+    channelName: "Ranveer Brar"
+  });
+  const pasta = recipe("pasta", 30, "Italian", {
+    title: "Cafe pasta",
+    description: "Creamy noodles with jalapeño",
+    channelName: "Chef"
+  });
+  const items = [paneer, biryani, pasta];
+
+  it("returns the unmodified list for an empty or whitespace-only query", () => {
+    expect(searchRecipes(items, "")).toEqual(items);
+    expect(searchRecipes(items, "   ")).toEqual(items);
+  });
+
+  it("matches case-insensitively", () => {
+    expect(searchRecipes(items, "PANEER").map(({ id }) => id)).toEqual(["paneer"]);
+  });
+
+  it("matches multiple whitespace-separated tokens with AND semantics", () => {
+    expect(searchRecipes(items, "paneer tikka").map(({ id }) => id)).toEqual(["paneer"]);
+    expect(searchRecipes(items, "paneer biryani")).toEqual([]);
+  });
+
+  it("matches across title, description, cuisine, and channel", () => {
+    expect(searchRecipes(items, "starter").map(({ id }) => id)).toEqual(["paneer"]);
+    expect(searchRecipes(items, "indian").map(({ id }) => id)).toEqual(["paneer", "biryani"]);
+    expect(searchRecipes(items, "ranveer").map(({ id }) => id)).toEqual(["biryani"]);
+  });
+
+  it("is diacritic and punctuation tolerant", () => {
+    expect(searchRecipes(items, "jalapeno").map(({ id }) => id)).toEqual(["pasta"]);
+    expect(searchRecipes(items, "cafe-pasta").map(({ id }) => id)).toEqual(["pasta"]);
+  });
+
+  it("returns an empty array when nothing matches", () => {
+    expect(searchRecipes(items, "sushi")).toEqual([]);
+  });
+
+  it("does not mutate the input list", () => {
+    const copy = [...items];
+    searchRecipes(items, "paneer");
+    expect(items).toEqual(copy);
   });
 });
 

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CUISINES, MEAL_TYPES, type Catalog, type Recipe } from "@/lib/types";
-import { filterRecipes, pickRandomRecipe } from "@/lib/roulette";
+import { filterRecipes, pickRandomRecipe, searchRecipes } from "@/lib/roulette";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const CATALOG_VERSION = process.env.NEXT_PUBLIC_CATALOG_VERSION ?? "local";
@@ -15,6 +15,8 @@ export function RecipeRoulette() {
   const [mealType, setMealType] = useState("");
   const [cuisine, setCuisine] = useState("");
   const [maxTime, setMaxTime] = useState(0);
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selected, setSelected] = useState<Recipe | null>(null);
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
@@ -38,14 +40,22 @@ export function RecipeRoulette() {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedQuery(query), 200);
+    return () => window.clearTimeout(timeout);
+  }, [query]);
+
   const filtered = useMemo(
     () =>
-      filterRecipes(catalog?.recipes ?? [], {
-        mealType,
-        cuisine,
-        maxCookingTime: maxTime === 0 ? null : maxTime
-      }),
-    [catalog, cuisine, maxTime, mealType]
+      searchRecipes(
+        filterRecipes(catalog?.recipes ?? [], {
+          mealType,
+          cuisine,
+          maxCookingTime: maxTime === 0 ? null : maxTime
+        }),
+        debouncedQuery
+      ),
+    [catalog, cuisine, debouncedQuery, maxTime, mealType]
   );
 
   useEffect(() => {
@@ -83,6 +93,17 @@ export function RecipeRoulette() {
       </header>
 
       <section className="controls" aria-label="Recipe filters">
+        <label htmlFor="search-recipes">
+          Search recipes
+          <input
+            id="search-recipes"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search by name, cuisine, or channel"
+            aria-describedby="eligible-count"
+          />
+        </label>
         <label>
           Meal type
           <select value={mealType} onChange={(event) => setMealType(event.target.value)}>
