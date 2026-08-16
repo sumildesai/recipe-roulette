@@ -19,7 +19,7 @@ export function filterRecipes(recipes: Recipe[], filters: RecipeFilters): Recipe
     if (filters.cuisines.length > 0 && !filters.cuisines.some((cuisine) => recipe.cuisine === cuisine)) {
       return false;
     }
-    if (filters.excludeEggs && recipe.ingredients.includes("egg")) {
+    if (filters.excludeEggs && recipe.ingredients?.includes("egg")) {
       return false;
     }
     if (filters.sources.length > 0 && !filters.sources.includes(recipe.channelName)) {
@@ -52,7 +52,7 @@ export function searchRecipes(recipes: Recipe[], query: string): Recipe[] {
 
   return recipes.filter((recipe) => {
     const haystack = normalizeSearchText(
-      [recipe.title, recipe.description, recipe.cuisine ?? "", recipe.channelName, ...recipe.ingredients].join(" ")
+      [recipe.title, recipe.description, recipe.cuisine ?? "", recipe.channelName, ...(recipe.ingredients ?? [])].join(" ")
     );
     return tokens.every((token) => haystack.includes(token));
   });

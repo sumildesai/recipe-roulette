@@ -103,7 +103,8 @@ describe("recipe filtering", () => {
   it("excludes recipes containing egg when requested", () => {
     const eggRecipes = [
       recipe("egg-curry", 20, "Indian", { ingredients: ["egg"] }),
-      recipe("paneer", 20)
+      recipe("paneer", 20),
+      recipe("legacy", 20, "Indian", { ingredients: undefined })
     ];
     expect(filterRecipes(eggRecipes, {
       mealTypes: [],
@@ -111,7 +112,7 @@ describe("recipe filtering", () => {
       excludeEggs: true,
       sources: [],
       maxCookingTime: null
-    }).map(({ id }) => id)).toEqual(["paneer"]);
+    }).map(({ id }) => id)).toEqual(["paneer", "legacy"]);
   });
 });
 
@@ -160,6 +161,11 @@ describe("recipe search", () => {
 
   it("returns an empty array when nothing matches", () => {
     expect(searchRecipes(items, "sushi")).toEqual([]);
+  });
+
+  it("searches legacy recipes without ingredient metadata", () => {
+    const legacy = recipe("legacy", 20, "Indian", { ingredients: undefined });
+    expect(searchRecipes([legacy], "legacy")).toEqual([legacy]);
   });
 
   it("does not mutate the input list", () => {
