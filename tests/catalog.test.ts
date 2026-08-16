@@ -7,6 +7,7 @@ import {
   classifyVegetarian,
   inferCookingTime,
   inferCuisine,
+  inferIngredients,
   inferMealTypes,
   parseIsoDuration,
   type VideoSource
@@ -184,6 +185,10 @@ describe("catalog inference", () => {
     expect(inferCuisine("Thai fried rice recipe")).toBe("Global");
     expect(inferCuisine("Complete thali platter menu")).toBeNull();
     expect(inferCuisine("Watch this kitchen tour")).toBeNull();
+    expect(inferIngredients("Masala egg curry")).toEqual(["egg"]);
+    expect(inferIngredients("Anda bhurji")).toEqual(["egg"]);
+    expect(inferIngredients("Eggless besan bhurji")).toEqual([]);
+    expect(inferIngredients("An egg-free cake")).toEqual([]);
   });
 
   it("parses ISO 8601 video durations", () => {

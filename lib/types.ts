@@ -1,8 +1,10 @@
 export const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 export const CUISINES = ["Indian", "Indo-Chinese", "Italian", "Middle Eastern", "Mexican", "Global"] as const;
+export const INGREDIENTS = ["egg"] as const;
 
 export type MealType = (typeof MEAL_TYPES)[number];
 export type Cuisine = (typeof CUISINES)[number];
+export type Ingredient = (typeof INGREDIENTS)[number];
 
 export interface Recipe {
   id: string;
@@ -18,6 +20,7 @@ export interface Recipe {
   cookingTimeMinutes: number | null;
   mealTypes: MealType[];
   cuisine: Cuisine | null;
+  ingredients: Ingredient[];
   vegetarian: true;
 }
 

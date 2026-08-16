@@ -1,4 +1,4 @@
-import type { Cuisine, MealType, Recipe } from "../lib/types";
+import type { Cuisine, Ingredient, MealType, Recipe } from "../lib/types";
 import { CUISINE_RULES, type ClassificationRule } from "./classification-taxonomy";
 import { inferMealClassification, type MealClassification } from "./meal-classification";
 
@@ -24,6 +24,7 @@ export interface RecipeCorrection {
   cookingTimeMinutes?: number | null;
   mealTypes?: MealType[];
   cuisine?: Cuisine | null;
+  ingredients?: Ingredient[];
   vegetarian?: boolean | null;
 }
 
@@ -40,9 +41,15 @@ const REGEX_CACHE = new Map<string, RegExp>();
 
 const NON_VEG = /\b(chicken|mutton|lamb|fish|prawn|shrimp|meat|keema|kebab|seafood|crab|salmon|tuna|beef|pork)\b/i;
 const RECIPE_SIGNAL = /\b(recipe|cook|masala|curry|paneer|biryani|pasta|chaat|soup|cake|bread|paratha|naan|dal|sabzi|rice|noodles|dessert)\b/i;
+const EGG_FREE = /\b(?:egg[\s-]?less|egg[\s-]?free|without (?:an? )?eggs?|no eggs?)\b/gi;
+const EGG = /(?:\beggs?\b|\banda\b|\bande\b|अंडा|अंडे)/i;
 
 export function classifyVegetarian(text: string): boolean {
   return !NON_VEG.test(text);
+}
+
+export function inferIngredients(text: string): Ingredient[] {
+  return EGG.test(text.replace(EGG_FREE, " ")) ? ["egg"] : [];
 }
 
 export function inferCookingTime(text: string): number | null {
@@ -90,6 +97,7 @@ export function normalizeVideo(
     cookingTimeMinutes: correction.cookingTimeMinutes !== undefined ? correction.cookingTimeMinutes : inferCookingTime(text),
     mealTypes: correction.mealTypes ?? mealClassification.labels,
     cuisine: correction.cuisine ?? inferCuisine(text),
+    ingredients: correction.ingredients ?? inferIngredients(text),
     vegetarian: correction.vegetarian !== undefined ? correction.vegetarian : classifyVegetarian(text)
   };
 }
