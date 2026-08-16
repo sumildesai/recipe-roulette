@@ -21,6 +21,7 @@ export function RecipeRoulette() {
   const [error, setError] = useState("");
   const [mealTypes, setMealTypes] = useState<MealType[]>([]);
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
+  const [excludeEggs, setExcludeEggs] = useState(false);
   const [sources, setSources] = useState<string[]>([]);
   const [maxTime, setMaxTime] = useState(0);
   const [query, setQuery] = useState("");
@@ -67,12 +68,13 @@ export function RecipeRoulette() {
         filterRecipes(catalog?.recipes ?? [], {
           mealTypes,
           cuisines,
+          excludeEggs,
           sources,
           maxCookingTime: maxTime === 0 ? null : maxTime
         }),
         debouncedQuery
       ),
-    [catalog, cuisines, debouncedQuery, maxTime, mealTypes, sources]
+    [catalog, cuisines, debouncedQuery, excludeEggs, maxTime, mealTypes, sources]
   );
 
   useEffect(() => {
@@ -134,6 +136,17 @@ export function RecipeRoulette() {
           selected={cuisines}
           onChange={setCuisines}
         />
+        <div className="egg-filter">
+          <span className="egg-filter-label">Dietary preference</span>
+          <label>
+            <input
+              type="checkbox"
+              checked={excludeEggs}
+              onChange={(event) => setExcludeEggs(event.target.checked)}
+            />
+            Exclude eggs
+          </label>
+        </div>
         <CheckboxGroup
           legend="Source"
           options={sourceOptions}
@@ -200,6 +213,7 @@ export function RecipeRoulette() {
             <p className="meta">
               <span>{selected.channelName}</span>
               {selected.cuisine && <span>{selected.cuisine}</span>}
+              {selected.ingredients.includes("egg") && <span>Egg</span>}
               <span>{selected.cookingTimeMinutes === null ? "Time unknown" : `${selected.cookingTimeMinutes} min`}</span>
               <span>Vegetarian</span>
             </p>
