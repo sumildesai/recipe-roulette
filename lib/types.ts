@@ -20,7 +20,7 @@ export interface Recipe {
   cookingTimeMinutes: number | null;
   mealTypes: MealType[];
   cuisine: Cuisine | null;
-  ingredients: Ingredient[];
+  ingredients?: Ingredient[];
   vegetarian: true;
 }
 

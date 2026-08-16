@@ -213,7 +213,7 @@ export function RecipeRoulette() {
             <p className="meta">
               <span>{selected.channelName}</span>
               {selected.cuisine && <span>{selected.cuisine}</span>}
-              {selected.ingredients.includes("egg") && <span>Egg</span>}
+              {selected.ingredients?.includes("egg") && <span>Egg</span>}
               <span>{selected.cookingTimeMinutes === null ? "Time unknown" : `${selected.cookingTimeMinutes} min`}</span>
               <span>Vegetarian</span>
             </p>
