@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { MealType } from "../lib/types";
-import { MEAL_TYPE_RULES, type ClassificationRule } from "./classification-taxonomy";
+import { ENTREE_RULE, MEAL_TYPE_RULES, type ClassificationRule } from "./classification-taxonomy";
 
 export const AI_CLASSIFIER_VERSION = "meal-type-v1";
 export const AI_PROMPT_VERSION = "2026-08-14";
@@ -63,6 +63,9 @@ export function inferMealClassification({ title, description }: MealClassificati
 
   const proseEvidence = proseEvidenceFor(description);
   if (proseEvidence.length) return { labels: uniqueLabels(proseEvidence), evidence: proseEvidence, needsAi: false };
+
+  const entreeEvidence = entreeEvidenceFor(title, description);
+  if (entreeEvidence.length) return { labels: ["lunch", "dinner"], evidence: entreeEvidence, needsAi: false };
 
   return { labels: [], evidence: [], needsAi: true };
 }
@@ -215,6 +218,18 @@ function evidenceForText(
 function matchesRule(text: string, rule: ClassificationRule<MealType>): boolean {
   return rule.aliases.some((alias) => ruleRegex(alias).test(text)) &&
     !rule.exclusions?.some((alias) => ruleRegex(alias).test(text));
+}
+
+function entreeEvidenceFor(title: string, description: string): MealClassificationEvidence[] {
+  const text = `${sanitizeWeakSignals(title)} ${sanitizeWeakSignals(description)}`;
+  const match = ENTREE_RULE.aliases.find((alias) => ruleRegex(alias).test(text));
+  if (!match) return [];
+  return (["lunch", "dinner"] as const).map((label) => ({
+    source: "prose" as const,
+    label,
+    confidence: 0.7,
+    reference: `Generic entree signal: "${match}"`
+  }));
 }
 
 function ruleRegex(alias: string): RegExp {

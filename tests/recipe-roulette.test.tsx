@@ -24,6 +24,7 @@ const catalog: Catalog = {
       cookingTimeMinutes: 30,
       mealTypes: ["dinner"],
       cuisine: "Indian",
+      ingredients: [],
       vegetarian: true
     }
   ]
@@ -47,6 +48,7 @@ const searchCatalog: Catalog = {
       cookingTimeMinutes: 45,
       mealTypes: ["dinner"],
       cuisine: "Indian",
+      ingredients: ["egg"],
       vegetarian: true
     }
   ]
@@ -70,6 +72,7 @@ const sourceCatalog: Catalog = {
       cookingTimeMinutes: 45,
       mealTypes: ["dinner"],
       cuisine: "Indian",
+      ingredients: [],
       vegetarian: true
     },
     {
@@ -86,6 +89,7 @@ const sourceCatalog: Catalog = {
       cookingTimeMinutes: 30,
       mealTypes: ["dinner"],
       cuisine: "Italian",
+      ingredients: [],
       vegetarian: true
     }
   ]
@@ -155,7 +159,19 @@ describe("RecipeRoulette", () => {
     await screen.findByText("1 recipe ready to spin");
     expect(screen.getByRole("group", { name: "Meal type" })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Cuisine" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Exclude eggs" })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Source" })).toBeInTheDocument();
+  });
+
+  it("excludes recipes containing egg", async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(searchCatalog)
+    } as Response);
+    render(<RecipeRoulette />);
+    await screen.findByText("2 recipes ready to spin");
+    fireEvent.click(screen.getByRole("checkbox", { name: "Exclude eggs" }));
+    expect(await screen.findByText("1 recipe ready to spin")).toBeInTheDocument();
   });
 
   it("surfaces catalog errors", async () => {

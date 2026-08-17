@@ -21,6 +21,7 @@ const recipe = (
   cookingTimeMinutes: time,
   mealTypes: ["dinner"],
   cuisine: cuisine as Recipe["cuisine"],
+  ingredients: [],
   vegetarian: true,
   ...overrides
 });
@@ -34,9 +35,9 @@ describe("recipe filtering", () => {
   ];
 
   it("treats empty groups as unrestricted and composes with maximum time", () => {
-    expect(filterRecipes(recipes, { mealTypes: [], cuisines: [], sources: [], maxCookingTime: null }))
+    expect(filterRecipes(recipes, { mealTypes: [], cuisines: [], excludeEggs: false, sources: [], maxCookingTime: null }))
       .toHaveLength(4);
-    expect(filterRecipes(recipes, { mealTypes: [], cuisines: [], sources: [], maxCookingTime: 30 }).map(({ id }) => id))
+    expect(filterRecipes(recipes, { mealTypes: [], cuisines: [], excludeEggs: false, sources: [], maxCookingTime: 30 }).map(({ id }) => id))
       .toEqual(["fast", "italian"]);
   });
 
@@ -44,6 +45,7 @@ describe("recipe filtering", () => {
     expect(filterRecipes(recipes, {
       mealTypes: ["dinner", "lunch"],
       cuisines: [],
+      excludeEggs: false,
       sources: [],
       maxCookingTime: null
     }).map(({ id }) => id)).toEqual(["fast", "slow", "unknown", "italian"]);
@@ -58,6 +60,7 @@ describe("recipe filtering", () => {
     expect(filterRecipes(sourced, {
       mealTypes: ["dinner"],
       cuisines: ["Indian", "Italian"],
+      excludeEggs: false,
       sources: ["Your Food Lab"],
       maxCookingTime: null
     }).map(({ id }) => id)).toEqual(["yfl", "italian-yfl"]);
@@ -72,6 +75,7 @@ describe("recipe filtering", () => {
     expect(filterRecipes(sourced, {
       mealTypes: ["dinner"],
       cuisines: ["Indian"],
+      excludeEggs: false,
       sources: ["Your Food Lab"],
       maxCookingTime: 30
     }).map(({ id }) => id))
@@ -134,6 +138,7 @@ describe("recipe filtering", () => {
     const filters = {
       mealTypes: ["dinner"] as const,
       cuisines: ["Indian"] as const,
+      excludeEggs: true,
       sources: ["Chef"] as const,
       maxCookingTime: null
     };
@@ -141,9 +146,25 @@ describe("recipe filtering", () => {
     expect(filters).toEqual({
       mealTypes: ["dinner"],
       cuisines: ["Indian"],
+      excludeEggs: true,
       sources: ["Chef"],
       maxCookingTime: null
     });
+  });
+
+  it("excludes recipes containing egg when requested", () => {
+    const eggRecipes = [
+      recipe("egg-curry", 20, "Indian", { ingredients: ["egg"] }),
+      recipe("paneer", 20),
+      recipe("legacy", 20, "Indian", { ingredients: undefined })
+    ];
+    expect(filterRecipes(eggRecipes, {
+      mealTypes: [],
+      cuisines: [],
+      excludeEggs: true,
+      sources: [],
+      maxCookingTime: null
+    }).map(({ id }) => id)).toEqual(["paneer", "legacy"]);
   });
 });
 
@@ -192,6 +213,11 @@ describe("recipe search", () => {
 
   it("returns an empty array when nothing matches", () => {
     expect(searchRecipes(items, "sushi")).toEqual([]);
+  });
+
+  it("searches legacy recipes without ingredient metadata", () => {
+    const legacy = recipe("legacy", 20, "Indian", { ingredients: undefined });
+    expect(searchRecipes([legacy], "legacy")).toEqual([legacy]);
   });
 
   it("does not mutate the input list", () => {

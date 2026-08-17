@@ -8,14 +8,33 @@ export interface ClassificationRule<T extends string> {
 
 export const MEAL_TYPE_RULES = [
   { value: "breakfast", aliases: ["breakfast", "nashta", "morning", "brunch"] },
-  { value: "lunch", aliases: ["lunch", "tiffin", "midday"] },
-  { value: "dinner", aliases: ["dinner", "main course", "supper"] },
+  { value: "lunch", aliases: ["lunch", "tiffin", "midday", "midday meal"] },
+  { value: "dinner", aliases: ["dinner", "supper", "evening meal", "date night"] },
   {
     value: "snack",
     aliases: ["snack", "snacks", "chaat", "starter", "appetizer", "tea time", "evening snack"],
     exclusions: ["starter pack"]
   }
 ] as const satisfies readonly ClassificationRule<MealType>[];
+
+// Signals that a recipe is a generic entree/main dish without saying which
+// main meal it belongs to. When this matches and neither lunch nor dinner
+// is explicitly detected, the recipe should be tagged as both.
+export const ENTREE_RULE = {
+  value: "entree",
+  aliases: [
+    "main course",
+    "main dish",
+    "entree",
+    "entrée",
+    "sabzi",
+    "sabji",
+    "curry",
+    "dal",
+    "gravy",
+    "sabzi curry"
+  ]
+} as const satisfies ClassificationRule<"entree">;
 
 export const CUISINE_RULES = [
   {

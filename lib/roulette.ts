@@ -3,6 +3,7 @@ import type { Cuisine, MealType, Recipe } from "./types";
 export interface RecipeFilters {
   mealTypes: readonly MealType[];
   cuisines: readonly Cuisine[];
+  excludeEggs: boolean;
   sources: readonly string[];
   maxCookingTime: number | null;
 }
@@ -24,6 +25,9 @@ export function filterRecipes(recipes: Recipe[], filters: RecipeFilters): Recipe
       return false;
     }
     if (filters.cuisines.length > 0 && !filters.cuisines.some((cuisine) => recipe.cuisine === cuisine)) {
+      return false;
+    }
+    if (filters.excludeEggs && recipe.ingredients?.includes("egg")) {
       return false;
     }
     if (filters.sources.length > 0 && !filters.sources.includes(recipe.channelName)) {
@@ -57,7 +61,7 @@ export function searchRecipes(recipes: Recipe[], query: string): Recipe[] {
 
   return recipes.filter((recipe) => {
     const haystack = normalizeSearchText(
-      [recipe.title, recipe.description, recipe.cuisine ?? "", recipe.channelName].join(" ")
+      [recipe.title, recipe.description, recipe.cuisine ?? "", recipe.channelName, ...(recipe.ingredients ?? [])].join(" ")
     );
     return tokens.every((token) => haystack.includes(token));
   });

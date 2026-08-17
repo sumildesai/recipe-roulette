@@ -1,4 +1,4 @@
-import type { Cuisine, DurationRangeMinutes, MealType, Recipe, RecipeDurations } from "../lib/types";
+import type { Cuisine, DurationRangeMinutes, Ingredient, MealType, Recipe, RecipeDurations } from "../lib/types";
 import { CUISINE_RULES, type ClassificationRule } from "./classification-taxonomy";
 import { inferMealClassification, type MealClassification } from "./meal-classification";
 
@@ -24,6 +24,7 @@ export interface RecipeCorrection {
   cookingTimeMinutes?: number | null;
   mealTypes?: MealType[];
   cuisine?: Cuisine | null;
+  ingredients?: Ingredient[];
   vegetarian?: boolean | null;
 }
 
@@ -62,6 +63,8 @@ const DURATION_LABELS = {
   marination: ["marinat(?:ion|ing|e)(?:\\s*time)?"],
   total: ["total(?:\\s*time)?", "ready\\s+in"]
 } as const satisfies Record<keyof Omit<RecipeDurations, "overall" | "overallSource">, readonly string[]>;
+const EGG_FREE = /\b(?:egg[\s-]?less|egg[\s-]?free|without (?:an? )?eggs?|no eggs?)\b/gi;
+const EGG = /(?:\beggs?\b|\banda\b|\bande\b|अंडा|अंडे)/i;
 
 export function classifyVegetarian(text: string): boolean {
   return !NON_VEG.test(text);
@@ -75,6 +78,10 @@ export function classifyVegetarian(text: string): boolean {
  * precedence, and passive-only resting or marination durations do not create a
  * fallback active duration.
  */
+export function inferIngredients(text: string): Ingredient[] {
+  return EGG.test(text.replace(EGG_FREE, " ")) ? ["egg"] : [];
+}
+
 export function inferCookingTime(text: string): number | null {
   return inferRecipeDurations(text).overall?.maxMinutes ?? null;
 }
@@ -181,6 +188,7 @@ export function normalizeVideo(
     durations,
     mealTypes: correction.mealTypes ?? mealClassification.labels,
     cuisine: correction.cuisine ?? inferCuisine(text),
+    ingredients: correction.ingredients ?? inferIngredients(text),
     vegetarian: correction.vegetarian !== undefined ? correction.vegetarian : classifyVegetarian(text)
   };
 }

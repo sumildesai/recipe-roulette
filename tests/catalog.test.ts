@@ -8,6 +8,7 @@ import {
   inferCookingTime,
   inferRecipeDurations,
   inferCuisine,
+  inferIngredients,
   inferMealTypes,
   parseIsoDuration,
   type VideoSource
@@ -84,6 +85,24 @@ describe("catalog inference", () => {
       })).toEqual(implicit);
       expect(validateAiMealResponse({ labels: [] })).toEqual({ labels: [] });
       expect(validateAiMealResponse({ labels: [{ label: "brunch", confidence: 1, evidence: "Invalid taxonomy." }] })).toBeNull();
+    });
+
+    it("treats a generic entree with no explicit meal-time signal as both lunch and dinner", () => {
+      expect(inferMealClassification({
+        title: "Paneer Curry",
+        description: "A rich main course made with paneer and tomato gravy."
+      })).toMatchObject({ labels: ["lunch", "dinner"], needsAi: false });
+    });
+
+    it("does not force both when only lunch or dinner is explicitly mentioned alongside an entree word", () => {
+      expect(inferMealClassification({
+        title: "Paneer Curry",
+        description: "Course: Dinner\nA rich main course."
+      })).toMatchObject({ labels: ["dinner"], needsAi: false });
+      expect(inferMealClassification({
+        title: "Quick Lunch Dal",
+        description: "A simple main course dal."
+      })).toMatchObject({ labels: ["lunch"], needsAi: false });
     });
 
     it("caches validated AI responses by metadata and classifier version", async () => {
@@ -185,6 +204,10 @@ describe("catalog inference", () => {
     expect(inferCuisine("Thai fried rice recipe")).toBe("Global");
     expect(inferCuisine("Complete thali platter menu")).toBeNull();
     expect(inferCuisine("Watch this kitchen tour")).toBeNull();
+    expect(inferIngredients("Masala egg curry")).toEqual(["egg"]);
+    expect(inferIngredients("Anda bhurji")).toEqual(["egg"]);
+    expect(inferIngredients("Eggless besan bhurji")).toEqual([]);
+    expect(inferIngredients("An egg-free cake")).toEqual([]);
   });
 
   describe("recipe duration inference", () => {
