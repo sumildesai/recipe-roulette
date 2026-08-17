@@ -70,6 +70,10 @@ export function classifyVegetarian(text: string): boolean {
   return !NON_VEG.test(text);
 }
 
+export function inferIngredients(text: string): Ingredient[] {
+  return EGG.test(text.replace(EGG_FREE, " ")) ? ["egg"] : [];
+}
+
 /**
  * Infers the recipe duration used by legacy catalog and UI code.
  *
@@ -78,10 +82,6 @@ export function classifyVegetarian(text: string): boolean {
  * precedence, and passive-only resting or marination durations do not create a
  * fallback active duration.
  */
-export function inferIngredients(text: string): Ingredient[] {
-  return EGG.test(text.replace(EGG_FREE, " ")) ? ["egg"] : [];
-}
-
 export function inferCookingTime(text: string): number | null {
   return inferRecipeDurations(text).overall?.maxMinutes ?? null;
 }
