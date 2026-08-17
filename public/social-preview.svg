@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#fffaf0"/>
+  <circle cx="88" cy="78" r="230" fill="#f7c548" opacity=".24"/>
+  <circle cx="1120" cy="530" r="300" fill="#26734d" opacity=".12"/>
+  <g transform="translate(735 83)">
+    <circle cx="190" cy="190" r="176" fill="#fff" stroke="#eadac2" stroke-width="12"/>
+    <path d="M190 190V14A176 176 0 0 1 342 102Z" fill="#f7c548"/>
+    <path d="m190 190 152-88a176 176 0 0 1 0 176Z" fill="#e95120"/>
+    <path d="m190 190 152 88a176 176 0 0 1-152 88Z" fill="#26734d"/>
+    <path d="m190 190 0 176A176 176 0 0 1 38 278Z" fill="#d9753e"/>
+    <path d="m190 190-152 88A176 176 0 0 1 38 102Z" fill="#6ca77d"/>
+    <path d="m190 190-152-88A176 176 0 0 1 190 14Z" fill="#efb471"/>
+    <circle cx="190" cy="190" r="69" fill="#fffaf0" stroke="#fff" stroke-width="10"/>
+    <path d="M190 143a8 8 0 0 1 8 8v31h31a8 8 0 1 1 0 16h-31v31a8 8 0 1 1-16 0v-31h-31a8 8 0 1 1 0-16h31v-31a8 8 0 0 1 8-8Z" fill="#251a16"/>
+    <circle cx="190" cy="190" r="17" fill="#e95120"/>
+    <path d="M190 0 211 38h-42Z" fill="#251a16"/>
+  </g>
+  <text x="110" y="190" fill="#e95120" font-family="Arial, sans-serif" font-size="25" font-weight="700" letter-spacing="6">WHAT'S FOR DINNER?</text>
+  <text x="104" y="300" fill="#251a16" font-family="Georgia, serif" font-size="92" font-weight="700">Recipe</text>
+  <text x="104" y="390" fill="#251a16" font-family="Georgia, serif" font-size="92" font-weight="700">Roulette</text>
+  <text x="110" y="465" fill="#6e5a50" font-family="Arial, sans-serif" font-size="31">Spin for your next favourite recipe.</text>
+  <rect x="110" y="510" width="286" height="58" rx="29" fill="#26734d"/>
+  <text x="143" y="549" fill="#fff" font-family="Arial, sans-serif" font-size="25" font-weight="700">YOUR NEXT MEAL</text>
+</svg>
