@@ -86,6 +86,24 @@ describe("catalog inference", () => {
       expect(validateAiMealResponse({ labels: [{ label: "brunch", confidence: 1, evidence: "Invalid taxonomy." }] })).toBeNull();
     });
 
+    it("treats a generic entree with no explicit meal-time signal as both lunch and dinner", () => {
+      expect(inferMealClassification({
+        title: "Paneer Curry",
+        description: "A rich main course made with paneer and tomato gravy."
+      })).toMatchObject({ labels: ["lunch", "dinner"], needsAi: false });
+    });
+
+    it("does not force both when only lunch or dinner is explicitly mentioned alongside an entree word", () => {
+      expect(inferMealClassification({
+        title: "Paneer Curry",
+        description: "Course: Dinner\nA rich main course."
+      })).toMatchObject({ labels: ["dinner"], needsAi: false });
+      expect(inferMealClassification({
+        title: "Quick Lunch Dal",
+        description: "A simple main course dal."
+      })).toMatchObject({ labels: ["lunch"], needsAi: false });
+    });
+
     it("caches validated AI responses by metadata and classifier version", async () => {
       const directory = await mkdtemp(path.join(os.tmpdir(), "meal-cache-"));
       const cachePath = path.join(directory, "cache.json");
