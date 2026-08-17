@@ -211,7 +211,9 @@ describe("catalog inference", () => {
     expect(inferMealTypes("Breakfast snack for tea time")).toEqual(["breakfast", "snack"]);
     expect(inferMealTypes("Quick brunch bowl")).toEqual(["breakfast"]);
     expect(inferMealTypes("Rose lemonade mocktail")).toEqual(["drink"]);
+    expect(inferMealTypes("Fresh ginger tea")).toEqual(["drink"]);
     expect(inferMealTypes("Classic gulab jamun sweet")).toEqual(["dessert"]);
+    expect(inferMealTypes("Earl Grey tea cake")).toEqual(["dessert"]);
     expect(inferMealTypes("Kitchen starter pack for students")).toEqual([]);
     expect(inferCuisine("Schezwan Hakka noodles")).toBe("Indo-Chinese");
     expect(inferCuisine("Schezwan paneer fried rice")).toBe("Indo-Chinese");

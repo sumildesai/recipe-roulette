@@ -32,11 +32,14 @@ export const MEAL_TYPE_RULES = [
       "lassi",
       "sharbat",
       "shikanji",
+      "tea",
+      "chai",
       "iced tea",
       "masala tea",
       "green tea",
       "coffee"
-    ]
+    ],
+    exclusions: ["tea cake", "tea time"]
   },
   {
     value: "dessert",
