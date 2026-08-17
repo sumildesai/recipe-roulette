@@ -257,6 +257,7 @@ describe("catalog inference", () => {
     it("ignores malformed, negative, unsupported, and implausible durations", () => {
       expect(inferRecipeDurations("Cook time: -20 minutes")).toMatchObject({ cooking: null, overall: null });
       expect(inferRecipeDurations("Cook time: thirty minutes")).toMatchObject({ cooking: null, overall: null });
+      expect(inferRecipeDurations("Cook time: 1h30")).toMatchObject({ cooking: null, overall: null });
       expect(inferRecipeDurations("Cook time: 2 days")).toMatchObject({ cooking: null, overall: null });
       expect(inferRecipeDurations("Cook time: 200 hours")).toMatchObject({ cooking: null, overall: null });
       expect(inferRecipeDurations("Prep time: 13 hours. Cook time: 13 hours.")).toMatchObject({ overall: null });

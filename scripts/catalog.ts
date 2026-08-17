@@ -44,7 +44,7 @@ const MAX_SUPPORTED_DURATION_MINUTES = 24 * 60;
 // Keep the optional sign so malformed negative values are consumed and rejected instead of reread as positive durations.
 const NUMBER_PATTERN = "-?\\d+(?:\\.\\d+)?";
 const WORD_UNIT_PATTERN = "(?:hours?|hrs?|hr|minutes?|mins?|min)\\b";
-const ABBREVIATED_UNIT_PATTERN = "[hm](?![A-Za-z_])";
+const ABBREVIATED_UNIT_PATTERN = "(?:h(?:(?=\\d+\\s*m\\b)|(?!(?:\\d|[A-Za-z_])))|m(?![\\dA-Za-z_]))";
 const UNIT_PATTERN = `(?:${WORD_UNIT_PATTERN}|${ABBREVIATED_UNIT_PATTERN})`;
 const DURATION_TOKEN_PATTERN = `${NUMBER_PATTERN}\\s*${UNIT_PATTERN}`;
 const DURATION_EXPRESSION_PATTERN = `${DURATION_TOKEN_PATTERN}(?:\\s*(?:and\\s+)?${DURATION_TOKEN_PATTERN})?`;
