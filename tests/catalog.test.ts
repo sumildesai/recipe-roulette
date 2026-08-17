@@ -6,6 +6,7 @@ import {
   applyOverrides,
   classifyVegetarian,
   inferCookingTime,
+  inferRecipeDurations,
   inferCuisine,
   inferIngredients,
   inferMealTypes,
@@ -226,6 +227,83 @@ describe("catalog inference", () => {
     expect(inferIngredients("Anda bhurji")).toEqual(["egg"]);
     expect(inferIngredients("Eggless besan bhurji")).toEqual([]);
     expect(inferIngredients("An egg-free cake")).toEqual([]);
+  });
+
+  describe("recipe duration inference", () => {
+    it("parses minutes, hours, mixed units, case, and whitespace consistently", () => {
+      expect(inferRecipeDurations("Total Time: 1 hour 15 minutes").total)
+        .toEqual({ minMinutes: 75, maxMinutes: 75 });
+      expect(inferRecipeDurations("cook time: 2 HRS").cooking)
+        .toEqual({ minMinutes: 120, maxMinutes: 120 });
+      expect(inferRecipeDurations("prep time:\t 10   mins").preparation)
+        .toEqual({ minMinutes: 10, maxMinutes: 10 });
+      expect(inferRecipeDurations("total time: 1h30m").total)
+        .toEqual({ minMinutes: 90, maxMinutes: 90 });
+    });
+
+    it("keeps labeled preparation, cooking, resting, marination, and total durations distinct", () => {
+      const durations = inferRecipeDurations(
+        "Prep time: 15 minutes. Cooking time: 30 minutes. Resting time: 10 minutes. Marination time: 2 hours. Total time: 55 minutes."
+      );
+
+      expect(durations).toMatchObject({
+        preparation: { minMinutes: 15, maxMinutes: 15 },
+        cooking: { minMinutes: 30, maxMinutes: 30 },
+        resting: { minMinutes: 10, maxMinutes: 10 },
+        marination: { minMinutes: 120, maxMinutes: 120 },
+        total: { minMinutes: 55, maxMinutes: 55 },
+        overall: { minMinutes: 55, maxMinutes: 55 },
+        overallSource: "explicit-total"
+      });
+    });
+
+    it("stores ranges as min/max values and reports the maximum bound for compatibility", () => {
+      const durations = inferRecipeDurations("Cooking time: 30-45 minutes");
+      expect(durations.cooking).toEqual({ minMinutes: 30, maxMinutes: 45 });
+      expect(durations.overall).toEqual({ minMinutes: 30, maxMinutes: 45 });
+      expect(inferCookingTime("Cooking time: 30-45 minutes")).toBe(45);
+    });
+
+    it("uses a single unlabeled duration as a total fallback and ignores ambiguous unlabeled durations", () => {
+      expect(inferRecipeDurations("A quick dinner in 35 minutes")).toMatchObject({
+        total: { minMinutes: 35, maxMinutes: 35 },
+        overallSource: "unlabeled-total"
+      });
+      expect(inferRecipeDurations("Chop 10 minutes and bake 20 minutes")).toMatchObject({
+        total: null,
+        overall: null,
+        overallSource: "none"
+      });
+      expect(inferRecipeDurations("Cook time: thirty minutes. Serve after 10 minutes.")).toMatchObject({
+        total: null,
+        overall: null,
+        overallSource: "none"
+      });
+    });
+
+    it("prefers explicit total time over active components and excludes passive components from active fallback", () => {
+      expect(inferRecipeDurations("Prep time: 10 min. Cook time: 20 min. Resting time: 2 hours.").overall)
+        .toEqual({ minMinutes: 30, maxMinutes: 30 });
+      expect(inferRecipeDurations("Prep time: 10 min. Cook time: 20 min. Marination time: 2 hours. Total time: 150 min."))
+        .toMatchObject({
+          overall: { minMinutes: 150, maxMinutes: 150 },
+          overallSource: "explicit-total"
+        });
+    });
+
+    it("does not add duplicate labels for the same duration component", () => {
+      expect(inferRecipeDurations("Cook time: 20 minutes. Cooking time: 30 minutes.").cooking)
+        .toEqual({ minMinutes: 20, maxMinutes: 30 });
+    });
+
+    it("ignores malformed, negative, unsupported, and implausible durations", () => {
+      expect(inferRecipeDurations("Cook time: -20 minutes")).toMatchObject({ cooking: null, overall: null });
+      expect(inferRecipeDurations("Cook time: thirty minutes")).toMatchObject({ cooking: null, overall: null });
+      expect(inferRecipeDurations("Cook time: 1h30")).toMatchObject({ cooking: null, overall: null });
+      expect(inferRecipeDurations("Cook time: 2 days")).toMatchObject({ cooking: null, overall: null });
+      expect(inferRecipeDurations("Cook time: 200 hours")).toMatchObject({ cooking: null, overall: null });
+      expect(inferRecipeDurations("Prep time: 13 hours. Cook time: 13 hours.")).toMatchObject({ overall: null });
+    });
   });
 
   it("parses ISO 8601 video durations", () => {

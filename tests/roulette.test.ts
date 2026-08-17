@@ -82,6 +82,58 @@ describe("recipe filtering", () => {
       .toEqual(["yfl-fast"]);
   });
 
+  it("uses the documented maximum duration bound for range filtering", () => {
+    const range = recipe("range", null, "Indian", {
+      durations: {
+        preparation: null,
+        cooking: { minMinutes: 30, maxMinutes: 45 },
+        resting: null,
+        marination: null,
+        total: null,
+        overall: { minMinutes: 30, maxMinutes: 45 },
+        overallSource: "active-components"
+      }
+    });
+    expect(filterRecipes([range], { mealTypes: [], cuisines: [], sources: [], maxCookingTime: 30 }))
+      .toEqual([]);
+    expect(filterRecipes([range], { mealTypes: [], cuisines: [], sources: [], maxCookingTime: 45 }).map(({ id }) => id))
+      .toEqual(["range"]);
+  });
+
+  it("uses explicit total duration for maximum-time filtering when component durations are available", () => {
+    const explicitTotal = recipe("explicit-total", 150, "Indian", {
+      durations: {
+        preparation: { minMinutes: 10, maxMinutes: 10 },
+        cooking: { minMinutes: 20, maxMinutes: 20 },
+        resting: null,
+        marination: { minMinutes: 120, maxMinutes: 120 },
+        total: { minMinutes: 150, maxMinutes: 150 },
+        overall: { minMinutes: 150, maxMinutes: 150 },
+        overallSource: "explicit-total"
+      }
+    });
+    expect(filterRecipes([explicitTotal], { mealTypes: [], cuisines: [], sources: [], maxCookingTime: 30 }))
+      .toEqual([]);
+    expect(filterRecipes([explicitTotal], { mealTypes: [], cuisines: [], sources: [], maxCookingTime: 150 }).map(({ id }) => id))
+      .toEqual(["explicit-total"]);
+  });
+
+  it("excludes passive-only durations from maximum-time fallback", () => {
+    const passiveOnly = recipe("passive-only", null, "Indian", {
+      durations: {
+        preparation: null,
+        cooking: null,
+        resting: { minMinutes: 30, maxMinutes: 30 },
+        marination: { minMinutes: 120, maxMinutes: 120 },
+        total: null,
+        overall: null,
+        overallSource: "none"
+      }
+    });
+    expect(filterRecipes([passiveOnly], { mealTypes: [], cuisines: [], sources: [], maxCookingTime: 180 }))
+      .toEqual([]);
+  });
+
   it("does not mutate caller-owned filter collections", () => {
     const filters = {
       mealTypes: ["dinner"] as const,

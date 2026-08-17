@@ -8,6 +8,14 @@ export interface RecipeFilters {
   maxCookingTime: number | null;
 }
 
+/**
+ * Filters recipes by selected facets and maximum overall duration.
+ *
+ * Maximum-time filtering compares against the recipe duration's maximum bound. If
+ * enhanced duration metadata is unavailable, it falls back to the legacy
+ * `cookingTimeMinutes` value. Recipes with unknown overall duration are included
+ * only when no maximum-time filter is active.
+ */
 export function filterRecipes(recipes: Recipe[], filters: RecipeFilters): Recipe[] {
   return recipes.filter((recipe) => {
     if (
@@ -26,7 +34,8 @@ export function filterRecipes(recipes: Recipe[], filters: RecipeFilters): Recipe
       return false;
     }
     if (filters.maxCookingTime !== null) {
-      return recipe.cookingTimeMinutes !== null && recipe.cookingTimeMinutes <= filters.maxCookingTime;
+      const filterDuration = recipe.durations?.overall?.maxMinutes ?? recipe.cookingTimeMinutes;
+      return filterDuration !== null && filterDuration <= filters.maxCookingTime;
     }
     return true;
   });
