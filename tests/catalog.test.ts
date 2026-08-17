@@ -239,6 +239,11 @@ describe("catalog inference", () => {
       title: "Mango Lassi",
       description: "A refreshing yogurt beverage."
     })).toBe(true);
+    expect(isRecipeVideo({
+      ...video,
+      title: "Mango Milk Shake",
+      description: "A refreshing drink."
+    })).toBe(true);
   });
 });
 

@@ -40,7 +40,7 @@ type NormalizedRecipe = Omit<Recipe, "vegetarian"> & {
 const REGEX_CACHE = new Map<string, RegExp>();
 
 const NON_VEG = /\b(chicken|mutton|lamb|fish|prawn|shrimp|meat|keema|kebab|seafood|crab|salmon|tuna|beef|pork)\b/i;
-const RECIPE_SIGNAL = /\b(recipe|cook|masala|curry|paneer|biryani|pasta|chaat|soup|cake|bread|paratha|naan|dal|sabzi|rice|noodles|dessert|drink|beverage|mocktail|smoothie|juice|lemonade|milkshake|lassi|pudding|kheer|halwa)\b/i;
+const RECIPE_SIGNAL = /\b(recipe|cook|masala|curry|paneer|biryani|pasta|chaat|soup|cake|bread|paratha|naan|dal|sabzi|rice|noodles|dessert|drink|beverage|mocktail|smoothie|juice|lemonade|milk\s*shake|lassi|pudding|kheer|halwa)\b/i;
 const EGG_FREE = /\b(?:egg[\s-]?less|egg[\s-]?free|without (?:an? )?eggs?|no eggs?)\b/gi;
 const EGG = /(?:\beggs?\b|\banda\b|\bande\b|अंडा|अंडे)/i;
 
