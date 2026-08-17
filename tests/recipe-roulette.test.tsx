@@ -95,6 +95,14 @@ const sourceCatalog: Catalog = {
   ]
 };
 
+const typeCatalog: Catalog = {
+  ...catalog,
+  recipes: [
+    { ...catalog.recipes[0], id: "drink", videoId: "drink", title: "Mango Lassi", mealTypes: ["drink"] },
+    { ...catalog.recipes[0], id: "dessert", videoId: "dessert", title: "Gulab Jamun", mealTypes: ["dessert"] }
+  ]
+};
+
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
     ok: true,
@@ -132,6 +140,20 @@ describe("RecipeRoulette", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "Italian" }));
     expect(screen.getByText(/No recipes match/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Spin" })).toBeDisabled();
+  });
+
+  it("filters drinks and desserts as distinct recipe types", async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(typeCatalog)
+    } as Response);
+    render(<RecipeRoulette />);
+    await screen.findByText("2 recipes ready to spin");
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Drink" }));
+    expect(await screen.findByText("1 recipe ready to spin")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Dessert" }));
+    expect(await screen.findByText("2 recipes ready to spin")).toBeInTheDocument();
   });
 
   it("keeps each checkbox group inside a collapsed dropdown that summarises the selection", async () => {

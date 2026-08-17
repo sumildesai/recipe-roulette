@@ -14,6 +14,55 @@ export const MEAL_TYPE_RULES = [
     value: "snack",
     aliases: ["snack", "snacks", "chaat", "starter", "appetizer", "tea time", "evening snack"],
     exclusions: ["starter pack"]
+  },
+  {
+    value: "drink",
+    aliases: [
+      "drink",
+      "drinks",
+      "beverage",
+      "beverages",
+      "mocktail",
+      "cocktail",
+      "smoothie",
+      "juice",
+      "lemonade",
+      "milkshake",
+      "milk shake",
+      "lassi",
+      "sharbat",
+      "shikanji",
+      "iced tea",
+      "masala tea",
+      "green tea",
+      "coffee"
+    ]
+  },
+  {
+    value: "dessert",
+    aliases: [
+      "dessert",
+      "desserts",
+      "sweet dish",
+      "mithai",
+      "cake",
+      "brownie",
+      "brownies",
+      "cookie",
+      "cookies",
+      "pudding",
+      "ice cream",
+      "kulfi",
+      "kheer",
+      "halwa",
+      "ladoo",
+      "laddu",
+      "barfi",
+      "burfi",
+      "gulab jamun",
+      "jalebi",
+      "rasmalai"
+    ]
   }
 ] as const satisfies readonly ClassificationRule<MealType>[];
 

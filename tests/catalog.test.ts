@@ -9,6 +9,7 @@ import {
   inferCuisine,
   inferIngredients,
   inferMealTypes,
+  isRecipeVideo,
   parseIsoDuration,
   type VideoSource
 } from "@/scripts/catalog";
@@ -73,6 +74,17 @@ describe("catalog inference", () => {
       })).toMatchObject({ labels: ["breakfast", "snack"], needsAi: false });
     });
 
+    it("recognizes common drink and dessert signals", () => {
+      expect(inferMealClassification({
+        title: "Fresh Mango Lassi",
+        description: "A chilled yogurt drink."
+      })).toMatchObject({ labels: ["drink"], needsAi: false });
+      expect(inferMealClassification({
+        title: "Chocolate Brownie Dessert",
+        description: "Rich and fudgy."
+      })).toMatchObject({ labels: ["dessert"], needsAi: false });
+    });
+
     it("accepts only valid, sufficiently confident AI labels for implicit dishes", () => {
       const implicit = inferMealClassification({ title: "Traditional Poha", description: "Flattened rice with peanuts." });
       expect(implicit).toMatchObject({ labels: [], needsAi: true });
@@ -83,6 +95,9 @@ describe("catalog inference", () => {
         labels: [{ label: "breakfast", confidence: 0.5, evidence: "Maybe breakfast." }]
       })).toEqual(implicit);
       expect(validateAiMealResponse({ labels: [] })).toEqual({ labels: [] });
+      expect(validateAiMealResponse({
+        labels: [{ label: "dessert", confidence: 0.95, evidence: "A traditional sweet dish." }]
+      })).not.toBeNull();
       expect(validateAiMealResponse({ labels: [{ label: "brunch", confidence: 1, evidence: "Invalid taxonomy." }] })).toBeNull();
     });
 
@@ -195,6 +210,8 @@ describe("catalog inference", () => {
     expect(inferCookingTime("A simple family recipe")).toBeNull();
     expect(inferMealTypes("Breakfast snack for tea time")).toEqual(["breakfast", "snack"]);
     expect(inferMealTypes("Quick brunch bowl")).toEqual(["breakfast"]);
+    expect(inferMealTypes("Rose lemonade mocktail")).toEqual(["drink"]);
+    expect(inferMealTypes("Classic gulab jamun sweet")).toEqual(["dessert"]);
     expect(inferMealTypes("Kitchen starter pack for students")).toEqual([]);
     expect(inferCuisine("Schezwan Hakka noodles")).toBe("Indo-Chinese");
     expect(inferCuisine("Schezwan paneer fried rice")).toBe("Indo-Chinese");
@@ -212,6 +229,14 @@ describe("catalog inference", () => {
   it("parses ISO 8601 video durations", () => {
     expect(parseIsoDuration("PT1H2M3S")).toBe(3723);
     expect(parseIsoDuration("not-a-duration")).toBeNull();
+  });
+
+  it("includes clear drink recipes as catalog candidates", () => {
+    expect(isRecipeVideo({
+      ...video,
+      title: "Mango Lassi",
+      description: "A refreshing yogurt beverage."
+    })).toBe(true);
   });
 });
 

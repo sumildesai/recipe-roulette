@@ -1,4 +1,4 @@
-export const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
+export const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack", "drink", "dessert"] as const;
 export const CUISINES = ["Indian", "Indo-Chinese", "Italian", "Middle Eastern", "Mexican", "Global"] as const;
 export const INGREDIENTS = ["egg"] as const;
 

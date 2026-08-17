@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { MealType } from "../lib/types";
+import { MEAL_TYPES, type MealType } from "../lib/types";
 import { ENTREE_RULE, MEAL_TYPE_RULES, type ClassificationRule } from "./classification-taxonomy";
 
-export const AI_CLASSIFIER_VERSION = "meal-type-v1";
-export const AI_PROMPT_VERSION = "2026-08-14";
+export const AI_CLASSIFIER_VERSION = "meal-type-v2";
+export const AI_PROMPT_VERSION = "2026-08-17";
 export const AI_CONFIDENCE_THRESHOLD = 0.8;
 
 export interface MealClassificationEvidence {
@@ -138,7 +138,7 @@ export async function classifyMealWithAi(input: MealClassificationInput, apiKey:
         {
           role: "system",
           content:
-            "Classify recipe meal types only. Return labels only from breakfast, lunch, dinner, snack. " +
+            `Classify recipe types only. Return labels only from ${MEAL_TYPES.join(", ")}. ` +
             "For every label require independent recipe-specific evidence; ignore promotional lists, hashtags, and boilerplate. " +
             "Return no labels when uncertain."
         },
@@ -161,7 +161,7 @@ export async function classifyMealWithAi(input: MealClassificationInput, apiKey:
                   additionalProperties: false,
                   required: ["label", "confidence", "evidence"],
                   properties: {
-                    label: { type: "string", enum: ["breakfast", "lunch", "dinner", "snack"] },
+                    label: { type: "string", enum: MEAL_TYPES },
                     confidence: { type: "number", minimum: 0, maximum: 1 },
                     evidence: { type: "string" }
                   }
@@ -253,5 +253,5 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isMealType(value: unknown): value is MealType {
-  return value === "breakfast" || value === "lunch" || value === "dinner" || value === "snack";
+  return typeof value === "string" && MEAL_TYPES.some((mealType) => mealType === value);
 }
