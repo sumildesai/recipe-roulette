@@ -154,7 +154,7 @@ export function RecipeRoulette() {
           onChange={setSources}
         />
         <label className="time-filter">
-          <span>Maximum cooking time <strong>{maxTime === 0 ? "No limit" : `${maxTime} min`}</strong></span>
+          <span>Maximum recipe time <strong>{maxTime === 0 ? "No limit" : `${maxTime} min`}</strong></span>
           <input
             type="range"
             min="0"
@@ -164,7 +164,7 @@ export function RecipeRoulette() {
             onChange={(event) => setMaxTime(Number(event.target.value))}
             aria-valuetext={maxTime === 0 ? "No time limit" : `${maxTime} minutes`}
           />
-          <small>Recipes with unknown times are included only when there is no limit.</small>
+          <small>Uses explicit totals when available; unknown times appear only with no limit.</small>
         </label>
       </section>
 
