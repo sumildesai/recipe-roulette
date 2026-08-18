@@ -94,9 +94,9 @@ describe("recipe filtering", () => {
         overallSource: "active-components"
       }
     });
-    expect(filterRecipes([range], { mealTypes: [], cuisines: [], sources: [], maxCookingTime: 30 }))
+    expect(filterRecipes([range], { mealTypes: [], cuisines: [], excludeEggs: false, sources: [], maxCookingTime: 30 }))
       .toEqual([]);
-    expect(filterRecipes([range], { mealTypes: [], cuisines: [], sources: [], maxCookingTime: 45 }).map(({ id }) => id))
+    expect(filterRecipes([range], { mealTypes: [], cuisines: [], excludeEggs: false, sources: [], maxCookingTime: 45 }).map(({ id }) => id))
       .toEqual(["range"]);
   });
 
@@ -112,9 +112,9 @@ describe("recipe filtering", () => {
         overallSource: "explicit-total"
       }
     });
-    expect(filterRecipes([explicitTotal], { mealTypes: [], cuisines: [], sources: [], maxCookingTime: 30 }))
+    expect(filterRecipes([explicitTotal], { mealTypes: [], cuisines: [], excludeEggs: false, sources: [], maxCookingTime: 30 }))
       .toEqual([]);
-    expect(filterRecipes([explicitTotal], { mealTypes: [], cuisines: [], sources: [], maxCookingTime: 150 }).map(({ id }) => id))
+    expect(filterRecipes([explicitTotal], { mealTypes: [], cuisines: [], excludeEggs: false, sources: [], maxCookingTime: 150 }).map(({ id }) => id))
       .toEqual(["explicit-total"]);
   });
 
@@ -130,7 +130,7 @@ describe("recipe filtering", () => {
         overallSource: "none"
       }
     });
-    expect(filterRecipes([passiveOnly], { mealTypes: [], cuisines: [], sources: [], maxCookingTime: 180 }))
+    expect(filterRecipes([passiveOnly], { mealTypes: [], cuisines: [], excludeEggs: false, sources: [], maxCookingTime: 180 }))
       .toEqual([]);
   });
 
