@@ -22,7 +22,6 @@ export function loadNytRecipes(): Recipe[] {
 export function normalizeNytRecipe(recipe: NytRecipeMetadata): Recipe {
   return {
     id: recipe.id,
-    videoId: recipe.id,
     title: recipe.title,
     description: METADATA_ONLY_DESCRIPTION,
     channelId: NYT_COOKING_SOURCE.id,

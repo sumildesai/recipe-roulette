@@ -32,7 +32,7 @@ export interface RecipeDurations {
 
 export interface Recipe {
   id: string;
-  videoId: string;
+  videoId?: string;
   title: string;
   description: string;
   channelId: string;

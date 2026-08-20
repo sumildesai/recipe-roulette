@@ -100,6 +100,13 @@ export function RecipeRoulette() {
     return recipe.sourceType === "website" ? `Open recipe on ${recipe.channelName}` : "Watch recipe on YouTube";
   }
 
+  function sourceInitials(source: string): string {
+    const acronym = source.match(/\b[A-Z0-9]{2,}\b/)?.[0];
+    if (acronym) return acronym.slice(0, 3);
+    const initials = source.match(/\b[A-Z0-9]/g)?.slice(0, 3).join("");
+    return initials || source.slice(0, 3).toUpperCase();
+  }
+
   if (error) {
     return <section className="status error" role="alert"><h1>Recipe Roulette</h1><p>{error}</p></section>;
   }
@@ -213,7 +220,7 @@ export function RecipeRoulette() {
               unoptimized
             />
           ) : (
-            <div className="result-placeholder" aria-hidden="true">NYT</div>
+            <div className="result-placeholder" aria-hidden="true">{sourceInitials(selected.channelName)}</div>
           )}
           <div>
             <p className="eyebrow">Tonight&apos;s pick</p>
