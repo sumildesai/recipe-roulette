@@ -103,6 +103,29 @@ const typeCatalog: Catalog = {
   ]
 };
 
+const websiteCatalog: Catalog = {
+  ...catalog,
+  recipes: [
+    {
+      ...catalog.recipes[0],
+      id: "nyt-test",
+      videoId: "nyt-test",
+      title: "Chocolate Chip Cookies",
+      description: "Metadata-only NYT Cooking entry.",
+      channelId: "nyt-cooking",
+      channelName: "NYT Cooking",
+      thumbnailUrl: "",
+      videoUrl: "https://cooking.nytimes.com/recipes/1015819-chocolate-chip-cookies",
+      sourceType: "website",
+      sourceUrl: "https://cooking.nytimes.com/recipes/1015819-chocolate-chip-cookies",
+      durationSeconds: null,
+      cookingTimeMinutes: null,
+      mealTypes: ["dessert"],
+      cuisine: "Global"
+    }
+  ]
+};
+
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
     ok: true,
@@ -132,6 +155,22 @@ describe("RecipeRoulette", () => {
     fireEvent.click(button);
     expect(await screen.findByRole("heading", { name: "Test Paneer" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Watch recipe on YouTube/ })).toHaveAttribute("href", catalog.recipes[0].videoUrl);
+  });
+
+  it("links metadata-only website recipes without requiring thumbnails", async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(websiteCatalog)
+    } as Response);
+    render(<RecipeRoulette />);
+    await screen.findByText("1 recipe ready to spin");
+    fireEvent.click(screen.getByRole("button", { name: "Spin" }));
+    expect(await screen.findByRole("heading", { name: "Chocolate Chip Cookies" })).toBeInTheDocument();
+    expect(screen.getByText("NYT")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open recipe on NYT Cooking/ })).toHaveAttribute(
+      "href",
+      websiteCatalog.recipes[0].sourceUrl
+    );
   });
 
   it("shows an empty state when filters remove all recipes", async () => {

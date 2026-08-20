@@ -23,6 +23,7 @@ import {
   writeAiMealCache
 } from "@/scripts/meal-classification";
 import { classifyMealTypes } from "@/scripts/generate-catalog";
+import { normalizeNytRecipe } from "@/scripts/nytimes-recipes";
 
 const video: VideoSource = {
   videoId: "recipe-1",
@@ -309,6 +310,25 @@ describe("catalog inference", () => {
   it("parses ISO 8601 video durations", () => {
     expect(parseIsoDuration("PT1H2M3S")).toBe(3723);
     expect(parseIsoDuration("not-a-duration")).toBeNull();
+  });
+
+  it("normalizes NYT Cooking metadata without recipe instructions", () => {
+    expect(normalizeNytRecipe({
+      id: "nyt-test",
+      title: "Chocolate Chip Cookies",
+      url: "https://cooking.nytimes.com/recipes/1015819-chocolate-chip-cookies",
+      mealTypes: ["dessert"],
+      cuisine: "Global"
+    })).toMatchObject({
+      id: "nyt-test",
+      title: "Chocolate Chip Cookies",
+      channelName: "NYT Cooking",
+      sourceType: "website",
+      sourceUrl: "https://cooking.nytimes.com/recipes/1015819-chocolate-chip-cookies",
+      thumbnailUrl: "",
+      cookingTimeMinutes: null,
+      mealTypes: ["dessert"]
+    });
   });
 
   it("includes clear drink recipes as catalog candidates", () => {

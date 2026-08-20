@@ -10,6 +10,10 @@
     {
       "id": "UCEHCDn_BBnk3uTK1M64ptyw",
       "name": "Ranveer Brar"
+    },
+    {
+      "id": "nyt-cooking",
+      "name": "NYT Cooking"
     }
   ],
   "recipes": [
@@ -110,6 +114,113 @@
         "dinner"
       ],
       "cuisine": "Indian",
+      "ingredients": [],
+      "vegetarian": true
+    },
+    {
+      "id": "nyt-no-knead-bread",
+      "videoId": "nyt-no-knead-bread",
+      "title": "No-Knead Bread",
+      "description": "Metadata-only NYT Cooking entry. The full recipe may require a subscription.",
+      "channelId": "nyt-cooking",
+      "channelName": "NYT Cooking",
+      "publishedAt": "1970-01-01T00:00:00.000Z",
+      "thumbnailUrl": "",
+      "videoUrl": "https://cooking.nytimes.com/recipes/11376-no-knead-bread",
+      "sourceType": "website",
+      "sourceUrl": "https://cooking.nytimes.com/recipes/11376-no-knead-bread",
+      "durationSeconds": null,
+      "cookingTimeMinutes": null,
+      "mealTypes": [
+        "snack"
+      ],
+      "cuisine": "Global",
+      "ingredients": [],
+      "vegetarian": true
+    },
+    {
+      "id": "nyt-caramelized-shallot-pasta",
+      "videoId": "nyt-caramelized-shallot-pasta",
+      "title": "Caramelized Shallot Pasta",
+      "description": "Metadata-only NYT Cooking entry. The full recipe may require a subscription.",
+      "channelId": "nyt-cooking",
+      "channelName": "NYT Cooking",
+      "publishedAt": "1970-01-01T00:00:00.000Z",
+      "thumbnailUrl": "",
+      "videoUrl": "https://cooking.nytimes.com/recipes/1020830-caramelized-shallot-pasta",
+      "sourceType": "website",
+      "sourceUrl": "https://cooking.nytimes.com/recipes/1020830-caramelized-shallot-pasta",
+      "durationSeconds": null,
+      "cookingTimeMinutes": null,
+      "mealTypes": [
+        "dinner"
+      ],
+      "cuisine": "Italian",
+      "ingredients": [],
+      "vegetarian": true
+    },
+    {
+      "id": "nyt-veggie-burgers",
+      "videoId": "nyt-veggie-burgers",
+      "title": "Veggie Burgers",
+      "description": "Metadata-only NYT Cooking entry. The full recipe may require a subscription.",
+      "channelId": "nyt-cooking",
+      "channelName": "NYT Cooking",
+      "publishedAt": "1970-01-01T00:00:00.000Z",
+      "thumbnailUrl": "",
+      "videoUrl": "https://cooking.nytimes.com/recipes/1019631-veggie-burgers",
+      "sourceType": "website",
+      "sourceUrl": "https://cooking.nytimes.com/recipes/1019631-veggie-burgers",
+      "durationSeconds": null,
+      "cookingTimeMinutes": null,
+      "mealTypes": [
+        "lunch",
+        "dinner"
+      ],
+      "cuisine": "Global",
+      "ingredients": [],
+      "vegetarian": true
+    },
+    {
+      "id": "nyt-gazpacho",
+      "videoId": "nyt-gazpacho",
+      "title": "Gazpacho",
+      "description": "Metadata-only NYT Cooking entry. The full recipe may require a subscription.",
+      "channelId": "nyt-cooking",
+      "channelName": "NYT Cooking",
+      "publishedAt": "1970-01-01T00:00:00.000Z",
+      "thumbnailUrl": "",
+      "videoUrl": "https://cooking.nytimes.com/recipes/1017577-gazpacho",
+      "sourceType": "website",
+      "sourceUrl": "https://cooking.nytimes.com/recipes/1017577-gazpacho",
+      "durationSeconds": null,
+      "cookingTimeMinutes": null,
+      "mealTypes": [
+        "lunch",
+        "dinner"
+      ],
+      "cuisine": "Global",
+      "ingredients": [],
+      "vegetarian": true
+    },
+    {
+      "id": "nyt-chocolate-chip-cookies",
+      "videoId": "nyt-chocolate-chip-cookies",
+      "title": "Chocolate Chip Cookies",
+      "description": "Metadata-only NYT Cooking entry. The full recipe may require a subscription.",
+      "channelId": "nyt-cooking",
+      "channelName": "NYT Cooking",
+      "publishedAt": "1970-01-01T00:00:00.000Z",
+      "thumbnailUrl": "",
+      "videoUrl": "https://cooking.nytimes.com/recipes/1015819-chocolate-chip-cookies",
+      "sourceType": "website",
+      "sourceUrl": "https://cooking.nytimes.com/recipes/1015819-chocolate-chip-cookies",
+      "durationSeconds": null,
+      "cookingTimeMinutes": null,
+      "mealTypes": [
+        "dessert"
+      ],
+      "cuisine": "Global",
       "ingredients": [],
       "vegetarian": true
     }
