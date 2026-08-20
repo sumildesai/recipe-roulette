@@ -107,13 +107,12 @@ const websiteCatalog: Catalog = {
   ...catalog,
   recipes: [
     {
-      ...catalog.recipes[0],
       id: "nyt-test",
-      videoId: "nyt-test",
       title: "Chocolate Chip Cookies",
       description: "Metadata-only NYT Cooking entry.",
       channelId: "nyt-cooking",
       channelName: "NYT Cooking",
+      publishedAt: "1970-01-01T00:00:00.000Z",
       thumbnailUrl: "",
       videoUrl: "https://cooking.nytimes.com/recipes/1015819-chocolate-chip-cookies",
       sourceType: "website",
@@ -121,7 +120,9 @@ const websiteCatalog: Catalog = {
       durationSeconds: null,
       cookingTimeMinutes: null,
       mealTypes: ["dessert"],
-      cuisine: "Global"
+      cuisine: "Global",
+      ingredients: [],
+      vegetarian: true
     }
   ]
 };
