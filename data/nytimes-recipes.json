@@ -4,34 +4,39 @@
     "title": "No-Knead Bread",
     "url": "https://cooking.nytimes.com/recipes/11376-no-knead-bread",
     "mealTypes": ["snack"],
-    "cuisine": "Global"
+    "cuisine": "Global",
+    "vegetarian": true
   },
   {
     "id": "nyt-caramelized-shallot-pasta",
     "title": "Caramelized Shallot Pasta",
     "url": "https://cooking.nytimes.com/recipes/1020830-caramelized-shallot-pasta",
     "mealTypes": ["dinner"],
-    "cuisine": "Italian"
+    "cuisine": "Italian",
+    "vegetarian": true
   },
   {
     "id": "nyt-veggie-burgers",
     "title": "Veggie Burgers",
     "url": "https://cooking.nytimes.com/recipes/1019631-veggie-burgers",
     "mealTypes": ["lunch", "dinner"],
-    "cuisine": "Global"
+    "cuisine": "Global",
+    "vegetarian": true
   },
   {
     "id": "nyt-gazpacho",
     "title": "Gazpacho",
     "url": "https://cooking.nytimes.com/recipes/1017577-gazpacho",
     "mealTypes": ["lunch", "dinner"],
-    "cuisine": "Global"
+    "cuisine": "Global",
+    "vegetarian": true
   },
   {
     "id": "nyt-chocolate-chip-cookies",
     "title": "Chocolate Chip Cookies",
     "url": "https://cooking.nytimes.com/recipes/1015819-chocolate-chip-cookies",
     "mealTypes": ["dessert"],
-    "cuisine": "Global"
+    "cuisine": "Global",
+    "vegetarian": true
   }
 ]

@@ -9,6 +9,7 @@ export interface NytRecipeMetadata {
   url: string;
   mealTypes: MealType[];
   cuisine: Cuisine | null;
+  vegetarian: true;
 }
 
 const METADATA_ONLY_DESCRIPTION = "Metadata-only NYT Cooking entry. The full recipe may require a subscription.";
@@ -36,6 +37,6 @@ export function normalizeNytRecipe(recipe: NytRecipeMetadata): Recipe {
     mealTypes: recipe.mealTypes,
     cuisine: recipe.cuisine,
     ingredients: [],
-    vegetarian: true
+    vegetarian: recipe.vegetarian
   };
 }

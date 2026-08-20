@@ -318,7 +318,8 @@ describe("catalog inference", () => {
       title: "Chocolate Chip Cookies",
       url: "https://cooking.nytimes.com/recipes/1015819-chocolate-chip-cookies",
       mealTypes: ["dessert"],
-      cuisine: "Global"
+      cuisine: "Global",
+      vegetarian: true
     })).toMatchObject({
       id: "nyt-test",
       title: "Chocolate Chip Cookies",
@@ -327,7 +328,8 @@ describe("catalog inference", () => {
       sourceUrl: "https://cooking.nytimes.com/recipes/1015819-chocolate-chip-cookies",
       thumbnailUrl: "",
       cookingTimeMinutes: null,
-      mealTypes: ["dessert"]
+      mealTypes: ["dessert"],
+      vegetarian: true
     });
   });
 
