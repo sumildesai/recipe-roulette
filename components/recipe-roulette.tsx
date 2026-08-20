@@ -96,6 +96,10 @@ export function RecipeRoulette() {
     }, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 900);
   }
 
+  function resultActionLabel(recipe: Recipe): string {
+    return recipe.sourceType === "website" ? "Open recipe on NYT Cooking" : "Watch recipe on YouTube";
+  }
+
   if (error) {
     return <section className="status error" role="alert"><h1>Recipe Roulette</h1><p>{error}</p></section>;
   }
@@ -200,13 +204,17 @@ export function RecipeRoulette() {
 
       {selected && (
         <article className="result-card" ref={resultRef} tabIndex={-1} aria-live="polite">
-          <Image
-            src={selected.thumbnailUrl}
-            alt=""
-            width={480}
-            height={360}
-            unoptimized
-          />
+          {selected.thumbnailUrl ? (
+            <Image
+              src={selected.thumbnailUrl}
+              alt=""
+              width={480}
+              height={360}
+              unoptimized
+            />
+          ) : (
+            <div className="result-placeholder" aria-hidden="true">NYT</div>
+          )}
           <div>
             <p className="eyebrow">Tonight&apos;s pick</p>
             <h2>{selected.title}</h2>
@@ -218,14 +226,14 @@ export function RecipeRoulette() {
               <span>Vegetarian</span>
             </p>
             <div className="result-actions">
-              <a href={selected.videoUrl} target="_blank" rel="noreferrer">Watch recipe on YouTube <span aria-hidden="true">↗</span></a>
+              <a href={selected.sourceUrl ?? selected.videoUrl} target="_blank" rel="noreferrer">{resultActionLabel(selected)} <span aria-hidden="true">↗</span></a>
               <button type="button" onClick={spin}>Spin again</button>
             </div>
           </div>
         </article>
       )}
 
-      <footer>Recipes sourced from the official Your Food Lab and Ranveer Brar YouTube channels.</footer>
+      <footer>Recipes sourced from the official Your Food Lab and Ranveer Brar YouTube channels, plus metadata-only NYT Cooking entries.</footer>
     </div>
   );
 }

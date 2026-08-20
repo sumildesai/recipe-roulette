@@ -103,6 +103,11 @@ small { color: #75655d; font-weight: 400; line-height: 1.35; }
   box-shadow: 0 18px 60px rgba(74,45,27,.12);
 }
 .result-card img { width: 100%; height: 100%; min-height: 260px; object-fit: cover; }
+.result-placeholder {
+  min-height: 260px; display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--ink), #6e5a50); color: var(--paper);
+  font-family: Georgia, serif; font-size: clamp(3rem, 10vw, 6rem); font-weight: 800; letter-spacing: -.08em;
+}
 .result-card > div { padding: 32px 32px 32px 0; align-self: center; }
 .result-card h2 { margin: 4px 0 18px; font: 700 clamp(1.7rem, 4vw, 2.6rem)/1.12 Georgia, serif; }
 .meta { display: flex; flex-wrap: wrap; gap: 8px; }
