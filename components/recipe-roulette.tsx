@@ -97,7 +97,7 @@ export function RecipeRoulette() {
   }
 
   function resultActionLabel(recipe: Recipe): string {
-    return recipe.sourceType === "website" ? "Open recipe on NYT Cooking" : "Watch recipe on YouTube";
+    return recipe.sourceType === "website" ? `Open recipe on ${recipe.channelName}` : "Watch recipe on YouTube";
   }
 
   if (error) {
@@ -223,7 +223,7 @@ export function RecipeRoulette() {
               {selected.cuisine && <span>{selected.cuisine}</span>}
               {selected.ingredients?.includes("egg") && <span>Egg</span>}
               <span>{selected.cookingTimeMinutes === null ? "Time unknown" : `${selected.cookingTimeMinutes} min`}</span>
-              <span>Vegetarian</span>
+              {selected.vegetarian && <span>Vegetarian</span>}
             </p>
             <div className="result-actions">
               <a href={selected.sourceUrl ?? selected.videoUrl} target="_blank" rel="noreferrer">{resultActionLabel(selected)} <span aria-hidden="true">↗</span></a>

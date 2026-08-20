@@ -9,7 +9,7 @@ export interface NytRecipeMetadata {
   url: string;
   mealTypes: MealType[];
   cuisine: Cuisine | null;
-  vegetarian: true;
+  vegetarian: boolean;
 }
 
 const METADATA_ONLY_DESCRIPTION = "Metadata-only NYT Cooking entry. The full recipe may require a subscription.";

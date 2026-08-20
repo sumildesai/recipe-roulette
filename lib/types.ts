@@ -52,7 +52,7 @@ export interface Recipe {
   mealTypes: MealType[];
   cuisine: Cuisine | null;
   ingredients?: Ingredient[];
-  vegetarian: true;
+  vegetarian: boolean;
 }
 
 export interface Catalog {
