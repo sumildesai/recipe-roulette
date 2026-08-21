@@ -183,6 +183,8 @@ export function normalizeVideo(
     publishedAt: new Date(video.publishedAt).toISOString(),
     thumbnailUrl: video.thumbnailUrl,
     videoUrl: `https://www.youtube.com/watch?v=${video.videoId}`,
+    sourceType: "youtube",
+    sourceUrl: `https://www.youtube.com/watch?v=${video.videoId}`,
     durationSeconds: video.durationSeconds,
     cookingTimeMinutes,
     durations,

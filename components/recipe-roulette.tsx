@@ -106,6 +106,17 @@ export function RecipeRoulette() {
     }, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 900);
   }
 
+  function resultActionLabel(recipe: Recipe): string {
+    return recipe.sourceType === "website" ? `Open recipe on ${recipe.channelName}` : "Watch recipe on YouTube";
+  }
+
+  function sourceInitials(source: string): string {
+    const acronym = source.match(/\b[A-Z0-9]{2,}\b/)?.[0];
+    if (acronym) return acronym.slice(0, 3);
+    const initials = source.match(/\b[A-Z0-9]/g)?.slice(0, 3).join("");
+    return initials || source.slice(0, 3).toUpperCase();
+  }
+
   if (error) {
     return <section className="status error" role="alert"><h1>Recipe Roulette</h1><p>{error}</p></section>;
   }
@@ -210,13 +221,17 @@ export function RecipeRoulette() {
 
       {selected && (
         <article className="result-card" ref={resultRef} tabIndex={-1} aria-live="polite">
-          <Image
-            src={selected.thumbnailUrl}
-            alt=""
-            width={480}
-            height={360}
-            unoptimized
-          />
+          {selected.thumbnailUrl ? (
+            <Image
+              src={selected.thumbnailUrl}
+              alt=""
+              width={480}
+              height={360}
+              unoptimized
+            />
+          ) : (
+            <div className="result-placeholder" aria-hidden="true">{sourceInitials(selected.channelName)}</div>
+          )}
           <div>
             <p className="eyebrow">Tonight&apos;s pick</p>
             <h2>{selected.title}</h2>
@@ -225,17 +240,17 @@ export function RecipeRoulette() {
               {selected.cuisine && <span>{selected.cuisine}</span>}
               {selected.ingredients?.includes("egg") && <span>Egg</span>}
               <span>{selected.cookingTimeMinutes === null ? "Time unknown" : `${selected.cookingTimeMinutes} min`}</span>
-              <span>Vegetarian</span>
+              {selected.vegetarian && <span>Vegetarian</span>}
             </p>
             <div className="result-actions">
-              <a href={selected.videoUrl} target="_blank" rel="noreferrer">Watch recipe on YouTube <span aria-hidden="true">↗</span></a>
+              <a href={selected.sourceUrl ?? selected.videoUrl} target="_blank" rel="noreferrer">{resultActionLabel(selected)} <span aria-hidden="true">↗</span></a>
               <button type="button" onClick={spin}>Spin again</button>
             </div>
           </div>
         </article>
       )}
 
-      <footer>Recipes sourced from the official Your Food Lab and Ranveer Brar YouTube channels.</footer>
+      <footer>Recipes sourced from the official Your Food Lab and Ranveer Brar YouTube channels, plus metadata-only NYT Cooking entries.</footer>
     </div>
   );
 }

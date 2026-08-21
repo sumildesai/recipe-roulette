@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       refresh_catalog:
-        description: Regenerate the catalog from YouTube before deploying
+        description: Regenerate the catalog from YouTube and static recipe metadata before deploying
         required: false
         default: false
         type: boolean
@@ -42,7 +42,7 @@ jobs:
             .catalog-cache/meal-type-ai.json
           key: recipes-catalog-v1-${{ github.run_id }}
           restore-keys: recipes-catalog-v1-
-      - name: Refresh catalog from official channels
+      - name: Refresh catalog from official channels and metadata sources
         if: github.event_name == 'schedule' || inputs.refresh_catalog
         run: npm run catalog:generate
         env:
@@ -55,7 +55,7 @@ jobs:
         run: |
           node -e "
             const catalog = require('./public/recipes.json');
-            if (catalog.source !== 'youtube') throw new Error('Catalog was not refreshed from YouTube');
+            if (catalog.source !== 'generated') throw new Error('Catalog was not refreshed from generated sources');
             if (catalog.recipes.length <= 5) throw new Error('Refreshed catalog unexpectedly contains five or fewer recipes');
             console.log('Verified refreshed catalog with ' + catalog.recipes.length + ' recipes.');
           "

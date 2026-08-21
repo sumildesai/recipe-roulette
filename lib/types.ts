@@ -32,7 +32,7 @@ export interface RecipeDurations {
 
 export interface Recipe {
   id: string;
-  videoId: string;
+  videoId?: string;
   title: string;
   description: string;
   channelId: string;
@@ -40,6 +40,8 @@ export interface Recipe {
   publishedAt: string;
   thumbnailUrl: string;
   videoUrl: string;
+  sourceType?: "youtube" | "website";
+  sourceUrl?: string;
   durationSeconds: number | null;
   cookingTimeMinutes: number | null;
   /**
@@ -50,12 +52,12 @@ export interface Recipe {
   mealTypes: MealType[];
   cuisine: Cuisine | null;
   ingredients?: Ingredient[];
-  vegetarian: true;
+  vegetarian: boolean;
 }
 
 export interface Catalog {
   version: 1;
-  source: "seed" | "youtube";
+  source: "seed" | "youtube" | "generated";
   updatedThrough: string | null;
   sourceChannels: Array<{ id: string; name: string }>;
   recipes: Recipe[];

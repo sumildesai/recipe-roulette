@@ -13,6 +13,7 @@ import {
   type AiMealRequest
 } from "./meal-classification";
 import type { Catalog } from "../lib/types";
+import { loadNytRecipes, NYT_COOKING_SOURCE } from "./nytimes-recipes";
 
 const API_ROOT = "https://www.googleapis.com/youtube/v3";
 const outputPath = path.resolve(process.env.CATALOG_OUTPUT_PATH ?? "public/recipes.local.json");
@@ -26,12 +27,13 @@ async function main() {
   const overrides = JSON.parse(await readFile(overridesPath, "utf8")) as CatalogOverrides;
   const videos = (await Promise.all(CHANNELS.map((channel) => fetchChannelVideos(channel, apiKey)))).flat();
   const mealClassifications = await classifyMealTypes(videos, overrides);
-  const recipes = applyOverrides(videos, overrides, mealClassifications);
+  const recipes = [...applyOverrides(videos, overrides, mealClassifications), ...loadNytRecipes()]
+    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id));
   const catalog: Catalog = {
     version: 1,
-    source: "youtube",
+    source: "generated",
     updatedThrough: recipes[0]?.publishedAt ?? null,
-    sourceChannels: CHANNELS.map(({ id, name }) => ({ id, name })),
+    sourceChannels: [...CHANNELS, NYT_COOKING_SOURCE].map(({ id, name }) => ({ id, name })),
     recipes
   };
   await writeFile(outputPath, `${JSON.stringify(catalog, null, 2)}\n`, "utf8");
