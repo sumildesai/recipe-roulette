@@ -140,6 +140,28 @@ describe("catalog inference", () => {
       })).toMatchObject({ labels: ["lunch"], needsAi: false });
     });
 
+    it("does not classify a savory entree as a drink, snack, or dessert from an incidental serving suggestion", () => {
+      expect(inferMealClassification({
+        title: "Baked Palak Paneer Casserole Recipe",
+        description: "Serve this baked palak paneer casserole hot, and pair it with a refreshing drink."
+      })).toMatchObject({ labels: ["lunch", "dinner"], needsAi: false });
+      expect(inferMealClassification({
+        title: "Baked Palak Paneer Casserole Recipe",
+        description: "This cheesy spinach paneer bake goes great with your evening tea or a cold drink."
+      })).toMatchObject({ labels: ["lunch", "dinner"], needsAi: false });
+      expect(inferMealClassification({
+        title: "Paneer Tikka Curry",
+        description: "A rich main course, best enjoyed with a side of dessert."
+      })).toMatchObject({ labels: ["lunch", "dinner"], needsAi: false });
+    });
+
+    it("defers to AI when weak prose evidence conflicts with a strong entree signal", () => {
+      expect(inferMealClassification({
+        title: "Paneer Casserole",
+        description: "A rich paneer main course. This snack is delicious too."
+      })).toMatchObject({ labels: [], needsAi: true });
+    });
+
     it("caches validated AI responses by metadata and classifier version", async () => {
       const directory = await mkdtemp(path.join(os.tmpdir(), "meal-cache-"));
       const cachePath = path.join(directory, "cache.json");
