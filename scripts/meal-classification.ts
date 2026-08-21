@@ -167,10 +167,19 @@ export async function classifyMealsWithCopilot(requests: AiMealRequest[], gitHub
       });
       try {
         const response = await session.sendAndWait({ prompt: copilotMealPrompt(batch) }, 120_000);
-        const parsed = validateCopilotMealResponse(response?.data.content, new Set(batch.map(({ id }) => id)));
-        parsed?.recipes.forEach(({ id, labels }) => classifications.set(id, { labels }));
+        const expectedIds = new Set(batch.map(({ id }) => id));
+        const parsed = validateCopilotMealResponse(response?.data.content, expectedIds);
+        if (parsed) {
+          parsed.recipes.forEach(({ id, labels }) => classifications.set(id, { labels }));
+        } else {
+          const raw = typeof response?.data.content === "string" ? response.data.content : String(response?.data.content);
+          console.warn(
+            `Copilot meal classification batch ${index / COPILOT_BATCH_SIZE + 1} returned invalid output ` +
+            `(expected ${expectedIds.size} recipes). Raw response (truncated to 500 chars): ${raw.slice(0, 500)}`
+          );
+        }
       } catch (error) {
-        console.warn(`Copilot meal classification batch failed: ${error instanceof Error ? error.message : error}`);
+        console.warn(`Copilot meal classification batch ${index / COPILOT_BATCH_SIZE + 1} failed: ${error instanceof Error ? error.message : error}`);
       } finally {
         await session.disconnect();
       }
