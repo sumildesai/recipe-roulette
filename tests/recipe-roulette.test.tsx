@@ -116,6 +116,25 @@ beforeEach(() => {
 });
 
 describe("RecipeRoulette", () => {
+  it("falls back to the seed when the local development catalog is absent", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({ ok: false, status: 404 } as Response)
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(catalog) } as Response);
+    render(<RecipeRoulette />);
+
+    expect(await screen.findByText("1 recipe ready to spin")).toBeInTheDocument();
+    expect(fetch).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("/recipes.local.json"),
+      expect.any(Object)
+    );
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("/recipes.json"),
+      expect.any(Object)
+    );
+  });
+
   it("shows loading, then the eligible catalog", async () => {
     render(<RecipeRoulette />);
     expect(screen.getByText("Loading recipes...")).toBeInTheDocument();

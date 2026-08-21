@@ -44,6 +44,7 @@ jobs:
         if: github.event_name == 'schedule' || inputs.refresh_catalog
         run: npm run catalog:generate
         env:
+          CATALOG_OUTPUT_PATH: public/recipes.json
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
       - name: Verify refreshed catalog
         if: github.event_name == 'schedule' || inputs.refresh_catalog

@@ -13,7 +13,7 @@ import {
 import type { Catalog } from "../lib/types";
 
 const API_ROOT = "https://www.googleapis.com/youtube/v3";
-const outputPath = path.resolve("public/recipes.json");
+const outputPath = path.resolve(process.env.CATALOG_OUTPUT_PATH ?? "public/recipes.local.json");
 const overridesPath = path.resolve("data/catalog-overrides.json");
 const aiCachePath = path.resolve(".catalog-cache/meal-type-ai.json");
 
