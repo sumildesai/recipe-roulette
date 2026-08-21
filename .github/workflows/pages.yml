@@ -37,7 +37,9 @@ jobs:
         id: catalog-cache
         uses: actions/cache/restore@v4
         with:
-          path: public/recipes.json
+          path: |
+            public/recipes.json
+            .catalog-cache/meal-type-ai.json
           key: recipes-catalog-v1-${{ github.run_id }}
           restore-keys: recipes-catalog-v1-
       - name: Refresh catalog from official channels
@@ -46,6 +48,8 @@ jobs:
         env:
           CATALOG_OUTPUT_PATH: public/recipes.json
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          MEAL_CLASSIFIER_REQUIRED: "true"
       - name: Verify refreshed catalog
         if: github.event_name == 'schedule' || inputs.refresh_catalog
         run: |
@@ -59,7 +63,9 @@ jobs:
         if: github.event_name == 'schedule' || inputs.refresh_catalog
         uses: actions/cache/save@v4
         with:
-          path: public/recipes.json
+          path: |
+            public/recipes.json
+            .catalog-cache/meal-type-ai.json
           key: recipes-catalog-v1-${{ github.run_id }}
       - name: Report catalog in use
         if: github.event_name != 'schedule' && !inputs.refresh_catalog
