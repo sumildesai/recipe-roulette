@@ -6,7 +6,7 @@ import { MEAL_TYPES, type MealType } from "../lib/types";
 import { ENTREE_RULE, MEAL_TYPE_RULES, type ClassificationRule } from "./classification-taxonomy";
 
 export const AI_CLASSIFIER_VERSION = "meal-type-v3-copilot";
-export const AI_PROMPT_VERSION = "2026-08-20";
+export const AI_PROMPT_VERSION = "2026-08-21";
 export const AI_CONFIDENCE_THRESHOLD = 0.8;
 
 export interface MealClassificationEvidence {
