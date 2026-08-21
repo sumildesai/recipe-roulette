@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { CopilotClient } from "@github/copilot-sdk";
 import { MEAL_TYPES, type MealType } from "../lib/types";
@@ -141,10 +142,12 @@ export async function writeAiMealCache(cachePath: string, cache: AiMealCache): P
 }
 
 export async function classifyMealsWithCopilot(requests: AiMealRequest[], gitHubToken: string): Promise<Map<string, AiMealResponse>> {
+  const baseDirectory = await mkdtemp(path.join(tmpdir(), "copilot-meal-classifier-"));
   const client = new CopilotClient({
     gitHubToken,
     useLoggedInUser: false,
     mode: "empty",
+    baseDirectory,
     logLevel: "error"
   });
   const classifications = new Map<string, AiMealResponse>();
@@ -174,6 +177,7 @@ export async function classifyMealsWithCopilot(requests: AiMealRequest[], gitHub
     }
   } finally {
     await client.stop();
+    await rm(baseDirectory, { recursive: true, force: true });
   }
   return classifications;
 }
