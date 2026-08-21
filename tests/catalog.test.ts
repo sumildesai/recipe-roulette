@@ -114,6 +114,12 @@ describe("catalog inference", () => {
       expect(validateCopilotMealResponse('{"recipes":[]}', new Set(["poha"]))).toBeNull();
       expect(validateCopilotMealResponse('{"recipes":[{"id":"other","labels":[]}]}', new Set(["poha"]))).toBeNull();
       expect(validateCopilotMealResponse("not json", new Set(["poha"]))).toBeNull();
+      expect(validateCopilotMealResponse("```json\n" + valid + "\n```", new Set(["poha"]))).toEqual({
+        recipes: [{ id: "poha", labels: [{ label: "breakfast", confidence: 0.92, evidence: "A customary morning dish." }] }]
+      });
+      expect(validateCopilotMealResponse("```\n" + valid + "\n```", new Set(["poha"]))).toEqual({
+        recipes: [{ id: "poha", labels: [{ label: "breakfast", confidence: 0.92, evidence: "A customary morning dish." }] }]
+      });
     });
 
     it("treats a generic entree with no explicit meal-time signal as both lunch and dinner", () => {
