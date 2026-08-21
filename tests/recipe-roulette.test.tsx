@@ -202,17 +202,29 @@ describe("RecipeRoulette", () => {
   });
 
   it("filters drinks and desserts as distinct recipe types", async () => {
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(typeCatalog)
-    } as Response);
-    render(<RecipeRoulette />);
-    await screen.findByText("2 recipes ready to spin");
+    const previous = process.env.NEXT_PUBLIC_DRINK_CLASSIFICATION_ENABLED;
+    process.env.NEXT_PUBLIC_DRINK_CLASSIFICATION_ENABLED = "true";
+    try {
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(typeCatalog)
+      } as Response);
+      render(<RecipeRoulette />);
+      await screen.findByText("2 recipes ready to spin");
 
-    fireEvent.click(screen.getByRole("checkbox", { name: "Drink" }));
-    expect(await screen.findByText("1 recipe ready to spin")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("checkbox", { name: "Dessert" }));
-    expect(await screen.findByText("2 recipes ready to spin")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("checkbox", { name: "Drink" }));
+      expect(await screen.findByText("1 recipe ready to spin")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("checkbox", { name: "Dessert" }));
+      expect(await screen.findByText("2 recipes ready to spin")).toBeInTheDocument();
+    } finally {
+      process.env.NEXT_PUBLIC_DRINK_CLASSIFICATION_ENABLED = previous;
+    }
+  });
+
+  it("hides drink meal type when drink classification flag is disabled", async () => {
+    render(<RecipeRoulette />);
+    await screen.findByText("1 recipe ready to spin");
+    expect(screen.queryByRole("checkbox", { name: "Drink" })).not.toBeInTheDocument();
   });
 
   it("keeps each checkbox group inside a collapsed dropdown that summarises the selection", async () => {

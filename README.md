@@ -15,6 +15,8 @@ Open <http://localhost:3000>. The checked-in `public/recipes.json` seed catalog 
 
 For full-catalog testing, place the generated catalog at `public/recipes.local.json`. This file is ignored by Git, and the development app prefers it automatically while falling back to the five-recipe seed when it is absent. The tracked `public/recipes.json` should always remain the small seed.
 
+Set `NEXT_PUBLIC_DRINK_CLASSIFICATION_ENABLED=true` to re-enable the `Drink` meal-type filter in the UI. By default (unset or any value other than `true`), the `Drink` option is hidden.
+
 ## Catalog generation
 
 The build-time generator queries only these hard-coded channel IDs:

@@ -47,6 +47,13 @@ export function RecipeRoulette() {
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const resultRef = useRef<HTMLElement>(null);
+  const mealTypeOptions = useMemo(
+    () =>
+      (process.env.NEXT_PUBLIC_DRINK_CLASSIFICATION_ENABLED === "true"
+        ? MEAL_TYPES
+        : MEAL_TYPES.filter((mealType) => mealType !== "drink")),
+    []
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -146,7 +153,7 @@ export function RecipeRoulette() {
         </label>
         <CheckboxGroup
           legend="Meal type"
-          options={MEAL_TYPES}
+          options={mealTypeOptions}
           selected={mealTypes}
           formatLabel={capitalize}
           onChange={setMealTypes}
