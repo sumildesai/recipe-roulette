@@ -4,17 +4,19 @@ import { pathToFileURL } from "node:url";
 import { applyOverrides, CHANNELS, isCatalogCandidate, parseIsoDuration, type CatalogOverrides, type VideoSource } from "./catalog";
 import {
   applyAiMealResponse,
-  classifyMealWithAi,
+  classifyMealsWithCopilot,
   inferMealClassification,
   mealClassificationCacheKey,
   readAiMealCache,
-  writeAiMealCache
+  writeAiMealCache,
+  type AiMealResponse,
+  type AiMealRequest
 } from "./meal-classification";
 import type { Catalog } from "../lib/types";
 import { loadNytRecipes, NYT_COOKING_SOURCE } from "./nytimes-recipes";
 
 const API_ROOT = "https://www.googleapis.com/youtube/v3";
-const outputPath = path.resolve("public/recipes.json");
+const outputPath = path.resolve(process.env.CATALOG_OUTPUT_PATH ?? "public/recipes.local.json");
 const overridesPath = path.resolve("data/catalog-overrides.json");
 const aiCachePath = path.resolve(".catalog-cache/meal-type-ai.json");
 
@@ -41,13 +43,13 @@ async function main() {
 export interface ClassifyMealTypesDeps {
   readAiMealCache: typeof readAiMealCache;
   writeAiMealCache: typeof writeAiMealCache;
-  classifyMealWithAi: typeof classifyMealWithAi;
+  classifyMealsWithCopilot: typeof classifyMealsWithCopilot;
 }
 
 const defaultClassifyMealTypesDeps: ClassifyMealTypesDeps = {
   readAiMealCache,
   writeAiMealCache,
-  classifyMealWithAi
+  classifyMealsWithCopilot
 };
 
 export async function classifyMealTypes(
@@ -67,37 +69,51 @@ export async function classifyMealTypes(
     [...inputs].map(([videoId, input]) => [videoId, inferMealClassification(input)])
   );
   const unresolved = [...classifications.entries()].filter(([videoId, result]) => result.needsAi && !overrides.corrections[videoId]?.mealTypes);
-  const classifierKey = process.env.MEAL_CLASSIFIER_API_KEY;
-  if (!classifierKey) {
-    if (unresolved.length) console.warn(`${unresolved.length} meal classifications unresolved; set MEAL_CLASSIFIER_API_KEY to enable AI-assisted classification.`);
+  const copilotToken = process.env.COPILOT_GITHUB_TOKEN;
+  if (!copilotToken) {
+    if (process.env.MEAL_CLASSIFIER_REQUIRED === "true") throw new Error("COPILOT_GITHUB_TOKEN is required for Copilot classification");
+    if (unresolved.length) console.warn(`${unresolved.length} meal classifications unresolved; set COPILOT_GITHUB_TOKEN to enable Copilot classification.`);
     return classifications;
   }
 
   const cache = await deps.readAiMealCache(aiCachePath);
   let cacheChanged = false;
   let failures = 0;
+  const uncached: AiMealRequest[] = unresolved.flatMap(([videoId]) => {
+    const input = inputs.get(videoId);
+    return input && !cache.entries[mealClassificationCacheKey(input)] ? [{ id: videoId, input }] : [];
+  });
+  let copilotResponses = new Map<string, AiMealResponse>();
+  if (uncached.length) {
+    try {
+      copilotResponses = await deps.classifyMealsWithCopilot(uncached, copilotToken);
+    } catch (error) {
+      console.warn(`Copilot meal classifier failed: ${error instanceof Error ? error.message : error}`);
+    }
+  }
   for (const [videoId, deterministic] of unresolved) {
     const input = inputs.get(videoId);
     if (!input) continue;
     const key = mealClassificationCacheKey(input);
-    try {
-      const response = cache.entries[key] ?? await deps.classifyMealWithAi(input, classifierKey);
-      if (!response) {
-        failures++;
-        continue;
-      }
-      if (!cache.entries[key]) {
-        cache.entries[key] = response;
-        cacheChanged = true;
-      }
-      classifications.set(videoId, applyAiMealResponse(deterministic, response));
-    } catch (error) {
+    const response = cache.entries[key] ?? copilotResponses.get(videoId);
+    if (!response) {
       failures++;
-      console.warn(`Meal classifier failed for ${videoId}: ${error instanceof Error ? error.message : error}`);
+      continue;
     }
+    if (!cache.entries[key]) {
+      cache.entries[key] = response;
+      cacheChanged = true;
+    }
+    classifications.set(videoId, applyAiMealResponse(deterministic, response));
   }
   if (cacheChanged) await deps.writeAiMealCache(aiCachePath, cache);
   const remaining = [...classifications.values()].filter(({ needsAi }) => needsAi).length;
+  const copilotResolved = uncached.filter(({ id }) => classifications.get(id)?.needsAi === false).length;
+  console.log(
+    `Meal classification summary: candidates=${candidates.length}, resolvedWithoutCopilot=${candidates.length - unresolved.length}, ` +
+    `cacheHits=${unresolved.length - uncached.length}, sentToCopilot=${uncached.length}, ` +
+    `validCopilotResponses=${copilotResponses.size}, resolvedByCopilot=${copilotResolved}, unresolved=${remaining}.`
+  );
   if (remaining) console.warn(`${remaining} meal classifications unresolved after AI classification.`);
   if (failures) console.warn(`${failures} AI classifications failed or returned invalid output.`);
   return classifications;

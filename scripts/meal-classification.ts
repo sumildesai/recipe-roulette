@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { CopilotClient } from "@github/copilot-sdk";
 import { MEAL_TYPES, type MealType } from "../lib/types";
 import { ENTREE_RULE, MEAL_TYPE_RULES, type ClassificationRule } from "./classification-taxonomy";
 
-export const AI_CLASSIFIER_VERSION = "meal-type-v2";
-export const AI_PROMPT_VERSION = "2026-08-17";
+export const AI_CLASSIFIER_VERSION = "meal-type-v3-copilot";
+export const AI_PROMPT_VERSION = "2026-08-20";
 export const AI_CONFIDENCE_THRESHOLD = 0.8;
 
 export interface MealClassificationEvidence {
@@ -39,6 +40,17 @@ export interface AiMealResponse {
 export interface AiMealCache {
   entries: Record<string, AiMealResponse>;
 }
+
+export interface AiMealRequest {
+  id: string;
+  input: MealClassificationInput;
+}
+
+interface CopilotMealResponse {
+  recipes: Array<AiMealResponse & { id: string }>;
+}
+
+const COPILOT_BATCH_SIZE = 20;
 
 const BOILERPLATE_SOURCE = "\\b(?:perfect|ideal|great|suitable|works?|good)\\b[^.!?\\n]{0,120}\\b(?:breakfast|lunch|dinner)\\b";
 const BOILERPLATE = new RegExp(BOILERPLATE_SOURCE, "i");
@@ -128,62 +140,74 @@ export async function writeAiMealCache(cachePath: string, cache: AiMealCache): P
   await writeFile(cachePath, `${JSON.stringify(cache, null, 2)}\n`, "utf8");
 }
 
-export async function classifyMealWithAi(input: MealClassificationInput, apiKey: string): Promise<AiMealResponse | null> {
-  const response = await fetch(process.env.MEAL_CLASSIFIER_API_URL ?? "https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: ["Bearer", apiKey].join(" "), "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: process.env.MEAL_CLASSIFIER_MODEL ?? "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content:
-            `Classify recipe types only. Return labels only from ${MEAL_TYPES.join(", ")}. ` +
-            "For every label require independent recipe-specific evidence; ignore promotional lists, hashtags, and boilerplate. " +
-            "Return no labels when uncertain."
-        },
-        { role: "user", content: `Title: ${input.title}\nDescription: ${input.description}` }
-      ],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "meal_type_classification",
-          strict: true,
-          schema: {
-            type: "object",
-            additionalProperties: false,
-            required: ["labels"],
-            properties: {
-              labels: {
-                type: "array",
-                items: {
-                  type: "object",
-                  additionalProperties: false,
-                  required: ["label", "confidence", "evidence"],
-                  properties: {
-                    label: { type: "string", enum: MEAL_TYPES },
-                    confidence: { type: "number", minimum: 0, maximum: 1 },
-                    evidence: { type: "string" }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    })
+export async function classifyMealsWithCopilot(requests: AiMealRequest[], gitHubToken: string): Promise<Map<string, AiMealResponse>> {
+  const client = new CopilotClient({
+    gitHubToken,
+    useLoggedInUser: false,
+    mode: "empty",
+    logLevel: "error"
   });
-  if (!response.ok) throw new Error(`Meal classifier failed (${response.status})`);
-  const body: unknown = await response.json();
-  const content = isRecord(body) && Array.isArray(body.choices) && isRecord(body.choices[0]) && isRecord(body.choices[0].message)
-    ? body.choices[0].message.content
-    : undefined;
-  if (typeof content !== "string") return null;
+  const classifications = new Map<string, AiMealResponse>();
+  await client.start();
   try {
-    return validateAiMealResponse(JSON.parse(content));
+    for (let index = 0; index < requests.length; index += COPILOT_BATCH_SIZE) {
+      const batch = requests.slice(index, index + COPILOT_BATCH_SIZE);
+      const session = await client.createSession({
+        ...(process.env.MEAL_CLASSIFIER_MODEL ? { model: process.env.MEAL_CLASSIFIER_MODEL } : {}),
+        availableTools: [],
+        enableConfigDiscovery: false,
+        enableHostGitOperations: false,
+        enableSessionStore: false,
+        enableSkills: false,
+        infiniteSessions: { enabled: false },
+        skipEmbeddingRetrieval: true
+      });
+      try {
+        const response = await session.sendAndWait({ prompt: copilotMealPrompt(batch) }, 120_000);
+        const parsed = validateCopilotMealResponse(response?.data.content, new Set(batch.map(({ id }) => id)));
+        parsed?.recipes.forEach(({ id, labels }) => classifications.set(id, { labels }));
+      } catch (error) {
+        console.warn(`Copilot meal classification batch failed: ${error instanceof Error ? error.message : error}`);
+      } finally {
+        await session.disconnect();
+      }
+    }
+  } finally {
+    await client.stop();
+  }
+  return classifications;
+}
+
+export function validateCopilotMealResponse(value: unknown, expectedIds: Set<string>): CopilotMealResponse | null {
+  if (typeof value !== "string") return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value.trim());
   } catch {
     return null;
   }
+  if (!isRecord(parsed) || !Array.isArray(parsed.recipes) || parsed.recipes.length !== expectedIds.size) return null;
+  const recipes: CopilotMealResponse["recipes"] = [];
+  const seen = new Set<string>();
+  for (const item of parsed.recipes) {
+    if (!isRecord(item) || typeof item.id !== "string" || !expectedIds.has(item.id) || seen.has(item.id)) return null;
+    const response = validateAiMealResponse({ labels: item.labels });
+    if (!response) return null;
+    seen.add(item.id);
+    recipes.push({ id: item.id, ...response });
+  }
+  return seen.size === expectedIds.size ? { recipes } : null;
+}
+
+function copilotMealPrompt(requests: AiMealRequest[]): string {
+  return [
+    `Classify each recipe using only these labels: ${MEAL_TYPES.join(", ")}.`,
+    "Require independent recipe-specific evidence for every label. Ignore promotional lists, hashtags, and boilerplate.",
+    "Use an empty labels array when uncertain. Return only valid JSON with this shape:",
+    '{"recipes":[{"id":"the supplied id","labels":[{"label":"breakfast","confidence":0.9,"evidence":"brief evidence"}]}]}',
+    "Include every supplied id exactly once and do not add any other keys.",
+    JSON.stringify(requests.map(({ id, input }) => ({ id, ...input })))
+  ].join("\n");
 }
 
 function structuredEvidence(description: string): MealClassificationEvidence[] {

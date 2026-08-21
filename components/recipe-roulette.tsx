@@ -14,7 +14,24 @@ import { filterRecipes, pickRandomRecipe, searchRecipes } from "@/lib/roulette";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const CATALOG_VERSION = process.env.NEXT_PUBLIC_CATALOG_VERSION ?? "local";
+const CATALOG_PATHS = process.env.NODE_ENV === "production"
+  ? ["recipes.json"]
+  : ["recipes.local.json", "recipes.json"];
 const WHEEL_COLORS = ["#ff6b35", "#f7c548", "#39a96b", "#4b7bec", "#a55eea", "#ef5777"];
+
+async function fetchCatalog(signal: AbortSignal): Promise<Catalog> {
+  for (const [index, catalogPath] of CATALOG_PATHS.entries()) {
+    const response = await fetch(
+      `${BASE_PATH}/${catalogPath}?v=${encodeURIComponent(CATALOG_VERSION)}`,
+      { signal, cache: "no-store" }
+    );
+    if (response.ok) return response.json() as Promise<Catalog>;
+    if (response.status !== 404 || index === CATALOG_PATHS.length - 1) {
+      throw new Error(`Catalog request failed (${response.status})`);
+    }
+  }
+  throw new Error("Catalog request failed");
+}
 
 export function RecipeRoulette() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
@@ -33,14 +50,7 @@ export function RecipeRoulette() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(
-      `${BASE_PATH}/recipes.json?v=${encodeURIComponent(CATALOG_VERSION)}`,
-      { signal: controller.signal, cache: "no-store" }
-    )
-      .then((response) => {
-        if (!response.ok) throw new Error(`Catalog request failed (${response.status})`);
-        return response.json() as Promise<Catalog>;
-      })
+    fetchCatalog(controller.signal)
       .then(setCatalog)
       .catch((cause: unknown) => {
         if (cause instanceof DOMException && cause.name === "AbortError") return;

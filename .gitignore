@@ -6,3 +6,4 @@ coverage/
 !.env.example
 *.tsbuildinfo
 .catalog-cache/
+public/recipes.local.json
