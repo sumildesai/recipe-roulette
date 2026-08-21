@@ -14,7 +14,6 @@ import { filterRecipes, pickRandomRecipe, searchRecipes } from "@/lib/roulette";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const CATALOG_VERSION = process.env.NEXT_PUBLIC_CATALOG_VERSION ?? "local";
-const DRINK_CLASSIFICATION_ENABLED = process.env.NEXT_PUBLIC_DRINK_CLASSIFICATION_ENABLED === "true";
 const CATALOG_PATHS = process.env.NODE_ENV === "production"
   ? ["recipes.json"]
   : ["recipes.local.json", "recipes.json"];
@@ -49,7 +48,10 @@ export function RecipeRoulette() {
   const [rotation, setRotation] = useState(0);
   const resultRef = useRef<HTMLElement>(null);
   const mealTypeOptions = useMemo(
-    () => (DRINK_CLASSIFICATION_ENABLED ? MEAL_TYPES : MEAL_TYPES.filter((mealType) => mealType !== "drink")),
+    () =>
+      (process.env.NEXT_PUBLIC_DRINK_CLASSIFICATION_ENABLED === "true"
+        ? MEAL_TYPES
+        : MEAL_TYPES.filter((mealType) => mealType !== "drink")),
     []
   );
 
