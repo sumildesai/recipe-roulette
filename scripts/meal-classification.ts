@@ -53,7 +53,15 @@ interface CopilotMealResponse {
 
 const COPILOT_BATCH_SIZE = 20;
 
-const BOILERPLATE_SOURCE = "\\b(?:perfect|ideal|great|suitable|works?|good)\\b[^.!?\\n]{0,120}\\b(?:breakfast|lunch|dinner)\\b";
+// Covers both general praise phrasing ("perfect for dinner") and serving-suggestion
+// phrasing ("pairs well with a refreshing drink", "serve with a side of dessert").
+// Matches against all meal-type words, not just breakfast/lunch/dinner, since
+// serving suggestions incidentally mentioning drinks, snacks, or desserts alongside
+// a savory entree were previously slipping through as prose evidence.
+const BOILERPLATE_SOURCE =
+  "\\b(?:perfect|ideal|great|suitable|works?|good|goes?|pairs?|paired|serve[sd]?|enjoy(?:ed)?|along)\\b" +
+  "[^.!?\\n]{0,120}" +
+  "\\b(?:breakfast|lunch|dinner|snacks?|drinks?|desserts?|tea|coffee)\\b";
 const BOILERPLATE = new RegExp(BOILERPLATE_SOURCE, "i");
 const BOILERPLATE_GLOBAL = new RegExp(BOILERPLATE_SOURCE, "gi");
 const HASH_TAG_SOURCE = "#\\w+";
@@ -75,9 +83,21 @@ export function inferMealClassification({ title, description }: MealClassificati
   if (strongEvidence.length) return { labels: uniqueLabels(strongEvidence), evidence: strongEvidence, needsAi: false };
 
   const proseEvidence = proseEvidenceFor(description);
+  const entreeEvidence = entreeEvidenceFor(title, description);
+
+  // A generic entree signal (paneer, curry, casserole, etc.) is a strong indicator
+  // the recipe is a savory main dish. If weak prose evidence disagrees with it (e.g.
+  // a passing mention of "drink" or "dessert" as a serving suggestion), don't let the
+  // prose evidence silently win; defer to AI classification instead.
+  if (proseEvidence.length && entreeEvidence.length) {
+    const proseLabels = new Set(proseEvidence.map(({ label }) => label));
+    if (!proseLabels.has("lunch") && !proseLabels.has("dinner")) {
+      return { labels: [], evidence: [...proseEvidence, ...entreeEvidence], needsAi: true };
+    }
+  }
+
   if (proseEvidence.length) return { labels: uniqueLabels(proseEvidence), evidence: proseEvidence, needsAi: false };
 
-  const entreeEvidence = entreeEvidenceFor(title, description);
   if (entreeEvidence.length) return { labels: ["lunch", "dinner"], evidence: entreeEvidence, needsAi: false };
 
   return { labels: [], evidence: [], needsAi: true };
