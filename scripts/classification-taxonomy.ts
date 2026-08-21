@@ -93,7 +93,11 @@ export const ENTREE_RULE = {
     "dal",
     "gravy",
     "sabzi curry",
-    "soup"
+    "soup",
+    "paneer",
+    "kofta",
+    "tikka",
+    "korma"
   ]
 } as const satisfies ClassificationRule<"entree">;
 
