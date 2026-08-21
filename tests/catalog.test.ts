@@ -160,6 +160,7 @@ describe("catalog inference", () => {
     const previousClassifierRequired = process.env.MEAL_CLASSIFIER_REQUIRED;
 
     afterEach(() => {
+      vi.restoreAllMocks();
       if (previousCopilotToken === undefined) delete process.env.COPILOT_GITHUB_TOKEN;
       else process.env.COPILOT_GITHUB_TOKEN = previousCopilotToken;
       if (previousClassifierRequired === undefined) delete process.env.MEAL_CLASSIFIER_REQUIRED;
@@ -212,6 +213,7 @@ describe("catalog inference", () => {
 
     it("applies and caches a successful Copilot classification", async () => {
       process.env.COPILOT_GITHUB_TOKEN = "test-key";
+      const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
       const readAiMealCache = vi.fn().mockResolvedValue({ entries: {} });
       const writeAiMealCache = vi.fn().mockResolvedValue(undefined);
       const response = { labels: [{ label: "breakfast" as const, confidence: 0.92, evidence: "A customary morning dish." }] };
@@ -230,6 +232,9 @@ describe("catalog inference", () => {
         entries: { [mealClassificationCacheKey({ title: implicitVideo.title, description: implicitVideo.description })]: response }
       });
       expect(classifications.get(implicitVideo.videoId)).toMatchObject({ labels: ["breakfast"], needsAi: false });
+      expect(log).toHaveBeenCalledWith(expect.stringContaining(
+        "sentToCopilot=1, validCopilotResponses=1, resolvedByCopilot=1, unresolved=0"
+      ));
     });
 
     it("leaves the classification unresolved when the AI request throws", async () => {

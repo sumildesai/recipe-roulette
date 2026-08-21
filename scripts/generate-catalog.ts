@@ -106,6 +106,12 @@ export async function classifyMealTypes(
   }
   if (cacheChanged) await deps.writeAiMealCache(aiCachePath, cache);
   const remaining = [...classifications.values()].filter(({ needsAi }) => needsAi).length;
+  const copilotResolved = uncached.filter(({ id }) => classifications.get(id)?.needsAi === false).length;
+  console.log(
+    `Meal classification summary: candidates=${candidates.length}, resolvedWithoutCopilot=${candidates.length - unresolved.length}, ` +
+    `cacheHits=${unresolved.length - uncached.length}, sentToCopilot=${uncached.length}, ` +
+    `validCopilotResponses=${copilotResponses.size}, resolvedByCopilot=${copilotResolved}, unresolved=${remaining}.`
+  );
   if (remaining) console.warn(`${remaining} meal classifications unresolved after AI classification.`);
   if (failures) console.warn(`${failures} AI classifications failed or returned invalid output.`);
   return classifications;
