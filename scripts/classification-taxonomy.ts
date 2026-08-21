@@ -32,6 +32,14 @@ export const MEAL_TYPE_RULES = [
       "lassi",
       "sharbat",
       "shikanji",
+      "panna",
+      "aam panna",
+      "jaljeera",
+      "chaas",
+      "buttermilk",
+      "nimbu pani",
+      "thandai",
+      "cooler",
       "tea",
       "chai",
       "iced tea",
@@ -39,7 +47,7 @@ export const MEAL_TYPE_RULES = [
       "green tea",
       "coffee"
     ],
-    exclusions: ["tea cake", "tea time"]
+    exclusions: ["tea cake", "tea time", "panna cotta"]
   },
   {
     value: "dessert",
@@ -84,7 +92,8 @@ export const ENTREE_RULE = {
     "curry",
     "dal",
     "gravy",
-    "sabzi curry"
+    "sabzi curry",
+    "soup"
   ]
 } as const satisfies ClassificationRule<"entree">;
 
