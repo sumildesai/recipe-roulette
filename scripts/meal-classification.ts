@@ -195,7 +195,7 @@ export function validateCopilotMealResponse(value: unknown, expectedIds: Set<str
   if (typeof value !== "string") return null;
   let parsed: unknown;
   try {
-    parsed = JSON.parse(value.trim());
+    parsed = JSON.parse(stripCodeFence(value));
   } catch {
     return null;
   }
@@ -212,11 +212,17 @@ export function validateCopilotMealResponse(value: unknown, expectedIds: Set<str
   return seen.size === expectedIds.size ? { recipes } : null;
 }
 
+function stripCodeFence(value: string): string {
+  const trimmed = value.trim();
+  const match = /^```(?:json)?\s*\n([\s\S]*?)\n?```$/i.exec(trimmed);
+  return match ? match[1].trim() : trimmed;
+}
+
 function copilotMealPrompt(requests: AiMealRequest[]): string {
   return [
     `Classify each recipe using only these labels: ${MEAL_TYPES.join(", ")}.`,
     "Require independent recipe-specific evidence for every label. Ignore promotional lists, hashtags, and boilerplate.",
-    "Use an empty labels array when uncertain. Return only valid JSON with this shape:",
+    "Use an empty labels array when uncertain. Return only valid JSON with this shape, with no markdown code fences or other surrounding text:",
     '{"recipes":[{"id":"the supplied id","labels":[{"label":"breakfast","confidence":0.9,"evidence":"brief evidence"}]}]}',
     "Include every supplied id exactly once and do not add any other keys.",
     JSON.stringify(requests.map(({ id, input }) => ({ id, ...input })))
