@@ -258,7 +258,7 @@ export function RecipeRoulette() {
               {selected.ingredients?.includes("egg") && <span>Egg</span>}
               <span>{selected.cookingTimeMinutes === null ? "Time unknown" : `${selected.cookingTimeMinutes} min`}</span>
               {selected.vegan && <span>Vegan</span>}
-              {selected.vegetarian && <span>Vegetarian</span>}
+              {selected.vegetarian && !selected.vegan && <span>Vegetarian</span>}
             </p>
             <div className="result-actions">
               <a href={selected.sourceUrl ?? selected.videoUrl} target="_blank" rel="noreferrer">{resultActionLabel(selected)} <span aria-hidden="true">↗</span></a>
