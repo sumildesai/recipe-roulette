@@ -25,6 +25,9 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
+env:
+  REFRESH_CATALOG: ${{ github.event_name == 'schedule' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true) || inputs.refresh_catalog }}
+
 jobs:
   build:
     if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
@@ -47,7 +50,7 @@ jobs:
           key: recipes-catalog-v1-${{ github.run_id }}
           restore-keys: recipes-catalog-v1-
       - name: Refresh catalog from official channels and metadata sources
-        if: github.event_name == 'schedule' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true) || inputs.refresh_catalog
+        if: env.REFRESH_CATALOG == 'true'
         run: npm run catalog:generate
         env:
           CATALOG_OUTPUT_PATH: public/recipes.json
@@ -55,7 +58,7 @@ jobs:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           MEAL_CLASSIFIER_REQUIRED: "true"
       - name: Verify refreshed catalog
-        if: github.event_name == 'schedule' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true) || inputs.refresh_catalog
+        if: env.REFRESH_CATALOG == 'true'
         run: |
           node -e "
             const catalog = require('./public/recipes.json');
@@ -64,7 +67,7 @@ jobs:
             console.log('Verified refreshed catalog with ' + catalog.recipes.length + ' recipes.');
           "
       - name: Save generated catalog for later deployments
-        if: github.event_name == 'schedule' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true) || inputs.refresh_catalog
+        if: env.REFRESH_CATALOG == 'true'
         uses: actions/cache/save@v4
         with:
           path: |
@@ -72,7 +75,7 @@ jobs:
             .catalog-cache/meal-type-ai.json
           key: recipes-catalog-v1-${{ github.run_id }}
       - name: Report catalog in use
-        if: github.event_name != 'schedule' && !(github.event_name == 'pull_request' && github.event.pull_request.merged == true) && !inputs.refresh_catalog
+        if: env.REFRESH_CATALOG != 'true'
         env:
           RESTORED_KEY: ${{ steps.catalog-cache.outputs.cache-matched-key }}
         run: |
