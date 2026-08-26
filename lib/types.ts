@@ -53,6 +53,8 @@ export interface Recipe {
   cuisine: Cuisine | null;
   ingredients?: Ingredient[];
   vegetarian: boolean;
+  /** Confirmed from a vegan source or explicit recipe metadata. */
+  vegan?: boolean;
 }
 
 export interface Catalog {

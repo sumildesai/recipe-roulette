@@ -4,6 +4,7 @@ export interface RecipeFilters {
   mealTypes: readonly MealType[];
   cuisines: readonly Cuisine[];
   excludeEggs: boolean;
+  veganOnly: boolean;
   sources: readonly string[];
   maxCookingTime: number | null;
 }
@@ -28,6 +29,9 @@ export function filterRecipes(recipes: Recipe[], filters: RecipeFilters): Recipe
       return false;
     }
     if (filters.excludeEggs && recipe.ingredients?.includes("egg")) {
+      return false;
+    }
+    if (filters.veganOnly && recipe.vegan !== true) {
       return false;
     }
     if (filters.sources.length > 0 && !filters.sources.includes(recipe.channelName)) {
