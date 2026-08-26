@@ -39,6 +39,7 @@ export function RecipeRoulette() {
   const [mealTypes, setMealTypes] = useState<MealType[]>([]);
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
   const [excludeEggs, setExcludeEggs] = useState(false);
+  const [veganOnly, setVeganOnly] = useState(false);
   const [sources, setSources] = useState<string[]>([]);
   const [maxTime, setMaxTime] = useState(0);
   const [query, setQuery] = useState("");
@@ -86,12 +87,13 @@ export function RecipeRoulette() {
           mealTypes,
           cuisines,
           excludeEggs,
+          veganOnly,
           sources,
           maxCookingTime: maxTime === 0 ? null : maxTime
         }),
         debouncedQuery
       ),
-    [catalog, cuisines, debouncedQuery, excludeEggs, maxTime, mealTypes, sources]
+    [catalog, cuisines, debouncedQuery, excludeEggs, maxTime, mealTypes, sources, veganOnly]
   );
 
   useEffect(() => {
@@ -174,6 +176,14 @@ export function RecipeRoulette() {
             />
             Exclude eggs
           </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={veganOnly}
+              onChange={(event) => setVeganOnly(event.target.checked)}
+            />
+            Vegan only
+          </label>
         </div>
         <CheckboxGroup
           legend="Source"
@@ -247,7 +257,8 @@ export function RecipeRoulette() {
               {selected.cuisine && <span>{selected.cuisine}</span>}
               {selected.ingredients?.includes("egg") && <span>Egg</span>}
               <span>{selected.cookingTimeMinutes === null ? "Time unknown" : `${selected.cookingTimeMinutes} min`}</span>
-              {selected.vegetarian && <span>Vegetarian</span>}
+              {selected.vegan && <span>Vegan</span>}
+              {selected.vegetarian && !selected.vegan && <span>Vegetarian</span>}
             </p>
             <div className="result-actions">
               <a href={selected.sourceUrl ?? selected.videoUrl} target="_blank" rel="noreferrer">{resultActionLabel(selected)} <span aria-hidden="true">↗</span></a>
@@ -257,7 +268,7 @@ export function RecipeRoulette() {
         </article>
       )}
 
-      <footer>Recipes sourced from the official Your Food Lab and Ranveer Brar YouTube channels, plus metadata-only NYT Cooking entries.</footer>
+      <footer>Recipes sourced from the official Your Food Lab, Ranveer Brar, and Rainbow Plant Life YouTube channels, plus metadata-only NYT Cooking entries.</footer>
     </div>
   );
 }

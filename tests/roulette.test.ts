@@ -35,9 +35,9 @@ describe("recipe filtering", () => {
   ];
 
   it("treats empty groups as unrestricted and composes with maximum time", () => {
-    expect(filterRecipes(recipes, { mealTypes: [], cuisines: [], excludeEggs: false, sources: [], maxCookingTime: null }))
+    expect(filterRecipes(recipes, { mealTypes: [], cuisines: [], excludeEggs: false, veganOnly: false, sources: [], maxCookingTime: null }))
       .toHaveLength(4);
-    expect(filterRecipes(recipes, { mealTypes: [], cuisines: [], excludeEggs: false, sources: [], maxCookingTime: 30 }).map(({ id }) => id))
+    expect(filterRecipes(recipes, { mealTypes: [], cuisines: [], excludeEggs: false, veganOnly: false, sources: [], maxCookingTime: 30 }).map(({ id }) => id))
       .toEqual(["fast", "italian"]);
   });
 
@@ -46,6 +46,7 @@ describe("recipe filtering", () => {
       mealTypes: ["dinner", "lunch"],
       cuisines: [],
       excludeEggs: false,
+      veganOnly: false,
       sources: [],
       maxCookingTime: null
     }).map(({ id }) => id)).toEqual(["fast", "slow", "unknown", "italian"]);
@@ -61,6 +62,7 @@ describe("recipe filtering", () => {
       mealTypes: ["dinner"],
       cuisines: ["Indian", "Italian"],
       excludeEggs: false,
+      veganOnly: false,
       sources: ["Your Food Lab"],
       maxCookingTime: null
     }).map(({ id }) => id)).toEqual(["yfl", "italian-yfl"]);
@@ -76,6 +78,7 @@ describe("recipe filtering", () => {
       mealTypes: ["dinner"],
       cuisines: ["Indian"],
       excludeEggs: false,
+      veganOnly: false,
       sources: ["Your Food Lab"],
       maxCookingTime: 30
     }).map(({ id }) => id))
@@ -94,9 +97,9 @@ describe("recipe filtering", () => {
         overallSource: "active-components"
       }
     });
-    expect(filterRecipes([range], { mealTypes: [], cuisines: [], excludeEggs: false, sources: [], maxCookingTime: 30 }))
+    expect(filterRecipes([range], { mealTypes: [], cuisines: [], excludeEggs: false, veganOnly: false, sources: [], maxCookingTime: 30 }))
       .toEqual([]);
-    expect(filterRecipes([range], { mealTypes: [], cuisines: [], excludeEggs: false, sources: [], maxCookingTime: 45 }).map(({ id }) => id))
+    expect(filterRecipes([range], { mealTypes: [], cuisines: [], excludeEggs: false, veganOnly: false, sources: [], maxCookingTime: 45 }).map(({ id }) => id))
       .toEqual(["range"]);
   });
 
@@ -112,9 +115,9 @@ describe("recipe filtering", () => {
         overallSource: "explicit-total"
       }
     });
-    expect(filterRecipes([explicitTotal], { mealTypes: [], cuisines: [], excludeEggs: false, sources: [], maxCookingTime: 30 }))
+    expect(filterRecipes([explicitTotal], { mealTypes: [], cuisines: [], excludeEggs: false, veganOnly: false, sources: [], maxCookingTime: 30 }))
       .toEqual([]);
-    expect(filterRecipes([explicitTotal], { mealTypes: [], cuisines: [], excludeEggs: false, sources: [], maxCookingTime: 150 }).map(({ id }) => id))
+    expect(filterRecipes([explicitTotal], { mealTypes: [], cuisines: [], excludeEggs: false, veganOnly: false, sources: [], maxCookingTime: 150 }).map(({ id }) => id))
       .toEqual(["explicit-total"]);
   });
 
@@ -130,7 +133,7 @@ describe("recipe filtering", () => {
         overallSource: "none"
       }
     });
-    expect(filterRecipes([passiveOnly], { mealTypes: [], cuisines: [], excludeEggs: false, sources: [], maxCookingTime: 180 }))
+    expect(filterRecipes([passiveOnly], { mealTypes: [], cuisines: [], excludeEggs: false, veganOnly: false, sources: [], maxCookingTime: 180 }))
       .toEqual([]);
   });
 
@@ -139,6 +142,7 @@ describe("recipe filtering", () => {
       mealTypes: ["dinner"] as const,
       cuisines: ["Indian"] as const,
       excludeEggs: true,
+      veganOnly: false,
       sources: ["Chef"] as const,
       maxCookingTime: null
     };
@@ -147,6 +151,7 @@ describe("recipe filtering", () => {
       mealTypes: ["dinner"],
       cuisines: ["Indian"],
       excludeEggs: true,
+      veganOnly: false,
       sources: ["Chef"],
       maxCookingTime: null
     });
@@ -162,9 +167,26 @@ describe("recipe filtering", () => {
       mealTypes: [],
       cuisines: [],
       excludeEggs: true,
+      veganOnly: false,
       sources: [],
       maxCookingTime: null
     }).map(({ id }) => id)).toEqual(["paneer", "legacy"]);
+  });
+
+  it("includes only confirmed vegan recipes when requested", () => {
+    const veganRecipes = [
+      recipe("vegan", 20, "Indian", { vegan: true }),
+      recipe("vegetarian", 20, "Indian", { vegan: false }),
+      recipe("legacy", 20, "Indian")
+    ];
+    expect(filterRecipes(veganRecipes, {
+      mealTypes: [],
+      cuisines: [],
+      excludeEggs: false,
+      veganOnly: true,
+      sources: [],
+      maxCookingTime: null
+    }).map(({ id }) => id)).toEqual(["vegan"]);
   });
 });
 

@@ -53,6 +53,8 @@ export interface Recipe {
   cuisine: Cuisine | null;
   ingredients?: Ingredient[];
   vegetarian: boolean;
+  /** True only when vegan status is confirmed; absent in legacy catalogs and treated as unknown. */
+  vegan?: boolean;
 }
 
 export interface Catalog {

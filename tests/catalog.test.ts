@@ -4,7 +4,9 @@ import path from "node:path";
 import os from "node:os";
 import {
   applyOverrides,
+  CHANNELS,
   classifyVegetarian,
+  classifyVegan,
   inferCookingTime,
   inferRecipeDurations,
   inferCuisine,
@@ -45,6 +47,16 @@ describe("catalog inference", () => {
     expect(classifyVegetarian("anda chicken curry")).toBe(false);
     expect(classifyVegetarian("eggless besan bhurji")).toBe(true);
     expect(classifyVegetarian("tomato soup")).toBe(true);
+  });
+
+  it("confirms vegan recipes from explicit metadata or the dedicated vegan channel", () => {
+    const rainbowPlantLife = CHANNELS.find(({ name }) => name === "Rainbow Plant Life");
+    expect(rainbowPlantLife).toMatchObject({ id: "UCDbZvuDA_tZ6XP5wKKFuemQ", vegan: true });
+    expect(classifyVegan("Creamy lentil pasta", rainbowPlantLife!.id)).toBe(true);
+    expect(classifyVegan("Vegan lentil pasta", video.channelId)).toBe(true);
+    expect(classifyVegan("Vegetarian paneer pasta", video.channelId)).toBe(false);
+    expect(classifyVegan("Vegan chicken pasta", video.channelId)).toBe(false);
+    expect(classifyVegan("Chicken pasta", rainbowPlantLife!.id)).toBe(false);
   });
 
   describe("source-aware meal inference", () => {

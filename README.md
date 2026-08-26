@@ -1,6 +1,6 @@
 # Recipe Roulette
 
-A static, accessible Next.js app that chooses a recipe uniformly at random from a local catalog sourced from the official **Your Food Lab** and **Ranveer Brar** YouTube channels, plus metadata-only **NYT Cooking** entries.
+A static, accessible Next.js app that chooses a recipe uniformly at random from a local catalog sourced from the official **Your Food Lab**, **Ranveer Brar**, and **Rainbow Plant Life** YouTube channels, plus metadata-only **NYT Cooking** entries.
 
 ## Local development
 
@@ -25,6 +25,7 @@ The build-time generator queries only these hard-coded channel IDs:
 | --- | --- |
 | Your Food Lab | `UCe2JAC5FUfbxLCfAvBWmNJA` |
 | Ranveer Brar | `UCEHCDn_BBnk3uTK1M64ptyw` |
+| Rainbow Plant Life | `UCDbZvuDA_tZ6XP5wKKFuemQ` |
 
 Create a YouTube Data API v3 key, restrict it to that API, then run:
 
@@ -34,7 +35,7 @@ YOUTUBE_API_KEY=your-key npm run catalog:generate
 
 The key is read only by `scripts/generate-catalog.ts`. It is never referenced by client code, stored in the catalog, or exposed through a `NEXT_PUBLIC_` variable.
 
-The generator fetches each channel's uploads, normalizes text and durations, excludes short/non-recipe videos, infers meal type, cuisine, and stated cooking time, then merges in the NYT Cooking title/type metadata from `data/nytimes-recipes.json` before writing deterministic JSON to `public/recipes.json`. NYT entries intentionally store only public metadata (title, link, meal type, and cuisine), not paywalled recipe instructions. Classification taxonomy now lives in `scripts/classification-taxonomy.ts`, where meal/cuisine aliases are type-checked against supported `MealType` and `Cuisine` values. Cuisine policy is explicit: recognized non-core cuisine aliases map to `Global`, while recipes with no cuisine signal remain unclassified (`null`). Vegetarian classification excludes recipes with explicit meat terms; recipes without those signals are treated as vegetarian (`true`). Unknown cooking times stay available when the UI has no time cap and are excluded when a cap is active.
+The generator fetches each channel's uploads, normalizes text and durations, excludes short/non-recipe videos, infers meal type, cuisine, and stated cooking time, then merges in the NYT Cooking title/type metadata from `data/nytimes-recipes.json` before writing deterministic JSON to `public/recipes.json`. NYT entries intentionally store only public metadata (title, link, meal type, and cuisine), not paywalled recipe instructions. Classification taxonomy now lives in `scripts/classification-taxonomy.ts`, where meal/cuisine aliases are type-checked against supported `MealType` and `Cuisine` values. Cuisine policy is explicit: recognized non-core cuisine aliases map to `Global`, while recipes with no cuisine signal remain unclassified (`null`). Vegetarian classification excludes recipes with explicit meat terms; recipes without those signals are treated as vegetarian (`true`). Vegan metadata is assigned to Rainbow Plant Life recipes and recipes explicitly labeled vegan; the vegan filter excludes recipes whose vegan status is not confirmed. Unknown cooking times stay available when the UI has no time cap and are excluded when a cap is active.
 
 Duration parsing recognizes numeric minute and hour units (`minute`, `minutes`, `min`, `mins`, `m`, `hour`, `hours`, `hr`, `hrs`, `h`), mixed hour/minute values, case differences, ordinary whitespace variation, and ranges such as `30-45 minutes`. Ranges are stored as `minMinutes`/`maxMinutes`; maximum-time filtering compares against `maxMinutes` so a recipe must fit within the selected cap even at the high end of a stated range. Labeled preparation, cooking, resting, marination, and total times remain separate in the generated `durations` metadata. An explicit total time is the overall duration used for filtering; otherwise preparation and cooking are summed as active time. Resting and marination are treated as passive and do not count toward the active-time fallback unless the source provides an explicit total that includes them. If there is exactly one unlabeled duration and no duration label appears nearby, it is treated as a total-time fallback; multiple unlabeled durations, malformed values, negative values, implausibly long values, and unsupported units are ignored instead of guessed. Recipes with no parsed overall duration remain available when no maximum-time cap is active and are excluded when a cap is set.
 

@@ -4,7 +4,8 @@ import { inferMealClassification, type MealClassification } from "./meal-classif
 
 export const CHANNELS = [
   { id: "UCe2JAC5FUfbxLCfAvBWmNJA", name: "Your Food Lab" },
-  { id: "UCEHCDn_BBnk3uTK1M64ptyw", name: "Ranveer Brar" }
+  { id: "UCEHCDn_BBnk3uTK1M64ptyw", name: "Ranveer Brar" },
+  { id: "UCDbZvuDA_tZ6XP5wKKFuemQ", name: "Rainbow Plant Life", vegan: true }
 ] as const;
 
 export interface VideoSource {
@@ -26,6 +27,7 @@ export interface RecipeCorrection {
   cuisine?: Cuisine | null;
   ingredients?: Ingredient[];
   vegetarian?: boolean | null;
+  vegan?: boolean;
 }
 
 export interface CatalogOverrides {
@@ -40,6 +42,7 @@ type NormalizedRecipe = Omit<Recipe, "vegetarian"> & {
 const REGEX_CACHE = new Map<string, RegExp>();
 
 const NON_VEG = /\b(chicken|mutton|lamb|fish|prawn|shrimp|meat|keema|kebab|seafood|crab|salmon|tuna|beef|pork)\b/i;
+const VEGAN = /\bvegan\b/i;
 const RECIPE_SIGNAL = /\b(recipe|cook|masala|curry|paneer|biryani|pasta|chaat|soup|cake|bread|paratha|naan|dal|sabzi|rice|noodles|dessert|drink|beverage|mocktail|smoothie|juice|lemonade|milk\s*shake|lassi|pudding|kheer|halwa)\b/i;
 const MAX_SUPPORTED_DURATION_MINUTES = 24 * 60;
 // Keep the optional sign so malformed negative values are consumed and rejected instead of reread as positive durations.
@@ -68,6 +71,12 @@ const EGG = /(?:\beggs?\b|\banda\b|\bande\b|अंडा|अंडे)/i;
 
 export function classifyVegetarian(text: string): boolean {
   return !NON_VEG.test(text);
+}
+
+export function classifyVegan(text: string, channelId: string): boolean {
+  return classifyVegetarian(text) && (
+    CHANNELS.some((channel) => channel.id === channelId && "vegan" in channel && channel.vegan) || VEGAN.test(text)
+  );
 }
 
 export function inferIngredients(text: string): Ingredient[] {
@@ -191,7 +200,8 @@ export function normalizeVideo(
     mealTypes: correction.mealTypes ?? mealClassification.labels,
     cuisine: correction.cuisine ?? inferCuisine(text),
     ingredients: correction.ingredients ?? inferIngredients(text),
-    vegetarian: correction.vegetarian !== undefined ? correction.vegetarian : classifyVegetarian(text)
+    vegetarian: correction.vegetarian !== undefined ? correction.vegetarian : classifyVegetarian(text),
+    vegan: correction.vegan ?? classifyVegan(text, video.channelId)
   };
 }
 
