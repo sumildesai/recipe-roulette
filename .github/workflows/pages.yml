@@ -3,6 +3,9 @@ name: Build and deploy Recipe Roulette
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
+    types: [closed]
   schedule:
     - cron: "17 5 * * 1,5"
   workflow_dispatch:
@@ -24,6 +27,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     environment: github-pages
     steps:
@@ -43,7 +47,7 @@ jobs:
           key: recipes-catalog-v1-${{ github.run_id }}
           restore-keys: recipes-catalog-v1-
       - name: Refresh catalog from official channels and metadata sources
-        if: github.event_name == 'push' || github.event_name == 'schedule' || inputs.refresh_catalog
+        if: github.event_name == 'schedule' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true) || inputs.refresh_catalog
         run: npm run catalog:generate
         env:
           CATALOG_OUTPUT_PATH: public/recipes.json
@@ -51,7 +55,7 @@ jobs:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           MEAL_CLASSIFIER_REQUIRED: "true"
       - name: Verify refreshed catalog
-        if: github.event_name == 'push' || github.event_name == 'schedule' || inputs.refresh_catalog
+        if: github.event_name == 'schedule' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true) || inputs.refresh_catalog
         run: |
           node -e "
             const catalog = require('./public/recipes.json');
@@ -60,7 +64,7 @@ jobs:
             console.log('Verified refreshed catalog with ' + catalog.recipes.length + ' recipes.');
           "
       - name: Save generated catalog for later deployments
-        if: github.event_name == 'push' || github.event_name == 'schedule' || inputs.refresh_catalog
+        if: github.event_name == 'schedule' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true) || inputs.refresh_catalog
         uses: actions/cache/save@v4
         with:
           path: |
@@ -68,7 +72,7 @@ jobs:
             .catalog-cache/meal-type-ai.json
           key: recipes-catalog-v1-${{ github.run_id }}
       - name: Report catalog in use
-        if: github.event_name != 'push' && github.event_name != 'schedule' && !inputs.refresh_catalog
+        if: github.event_name != 'schedule' && !(github.event_name == 'pull_request' && github.event.pull_request.merged == true) && !inputs.refresh_catalog
         env:
           RESTORED_KEY: ${{ steps.catalog-cache.outputs.cache-matched-key }}
         run: |
