@@ -74,7 +74,7 @@ export function classifyVegetarian(text: string): boolean {
 }
 
 export function classifyVegan(text: string, channelId: string): boolean {
-  return CHANNELS.some((channel) => channel.id === channelId && channel.vegan === true) || VEGAN.test(text);
+  return CHANNELS.some((channel) => channel.id === channelId && "vegan" in channel && channel.vegan) || VEGAN.test(text);
 }
 
 export function inferIngredients(text: string): Ingredient[] {
