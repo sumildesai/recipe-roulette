@@ -55,6 +55,8 @@ describe("catalog inference", () => {
     expect(classifyVegan("Creamy lentil pasta", rainbowPlantLife!.id)).toBe(true);
     expect(classifyVegan("Vegan lentil pasta", video.channelId)).toBe(true);
     expect(classifyVegan("Vegetarian paneer pasta", video.channelId)).toBe(false);
+    expect(classifyVegan("Vegan chicken pasta", video.channelId)).toBe(false);
+    expect(classifyVegan("Chicken pasta", rainbowPlantLife!.id)).toBe(false);
   });
 
   describe("source-aware meal inference", () => {
