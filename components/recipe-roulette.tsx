@@ -79,6 +79,17 @@ export function RecipeRoulette() {
       ),
     [catalog]
   );
+  const wheelSources = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (catalog?.recipes ?? [])
+            .filter((recipe) => recipe.sourceType !== "website")
+            .map((recipe) => recipe.channelName)
+        )
+      ).sort((a, b) => a.localeCompare(b)),
+    [catalog]
+  );
 
   const filtered = useMemo(
     () =>
@@ -215,10 +226,23 @@ export function RecipeRoulette() {
             aria-label={`Roulette wheel with ${filtered.length} eligible recipes`}
             style={{
               transform: `rotate(${rotation}deg)`,
-              background: `conic-gradient(${WHEEL_COLORS.map((color, index) => `${color} ${index * (100 / WHEEL_COLORS.length)}% ${(index + 1) * (100 / WHEEL_COLORS.length)}%`).join(",")})`
+              background: `conic-gradient(${wheelSources.map((_, index) => {
+                const color = WHEEL_COLORS[index % WHEEL_COLORS.length];
+                const segmentSize = 100 / wheelSources.length;
+                return `${color} ${index * segmentSize}% ${(index + 1) * segmentSize}%`;
+              }).join(",")})`
             }}
           >
-            <span aria-hidden="true">YFL</span><span aria-hidden="true">RB</span>
+            {wheelSources.map((source, index) => (
+              <span
+                aria-hidden="true"
+                className="wheel-source"
+                key={source}
+                style={{ "--wheel-source-angle": `${index * (360 / wheelSources.length)}deg` } as React.CSSProperties}
+              >
+                {sourceInitials(source)}
+              </span>
+            ))}
           </div>
           <button
             className="spin-button"
