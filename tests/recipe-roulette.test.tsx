@@ -58,6 +58,11 @@ const searchCatalog: Catalog = {
 
 const sourceCatalog: Catalog = {
   ...catalog,
+  sourceChannels: [
+    { id: "channel", name: "Your Food Lab" },
+    { id: "channel2", name: "Ranveer Brar" },
+    { id: "nyt-cooking", name: "NYT Cooking" }
+  ],
   recipes: [
     catalog.recipes[0],
     {
@@ -330,6 +335,19 @@ describe("RecipeRoulette", () => {
     expect(await screen.findByText("2 recipes ready to spin")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("checkbox", { name: "Your Food Lab" }));
     expect(await screen.findByText("3 recipes ready to spin")).toBeInTheDocument();
+  });
+
+  it("labels the wheel with every video source but omits NYT Cooking", async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(sourceCatalog)
+    } as Response);
+    render(<RecipeRoulette />);
+
+    await screen.findByText("3 recipes ready to spin");
+    expect(screen.getByText("YFL")).toBeInTheDocument();
+    expect(screen.getByText("RB")).toBeInTheDocument();
+    expect(screen.queryByText("NYT")).not.toBeInTheDocument();
   });
 
   it("shows the empty state when source and cuisine filters have no overlap", async () => {
