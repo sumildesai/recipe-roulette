@@ -238,7 +238,9 @@ export function RecipeRoulette() {
                 aria-hidden="true"
                 className="wheel-source"
                 key={source}
-                style={{ "--wheel-source-angle": `${index * (360 / wheelSources.length)}deg` } as React.CSSProperties}
+                style={{
+                  "--wheel-source-angle": `${(index + 0.5) * (360 / wheelSources.length)}deg`
+                } as React.CSSProperties}
               >
                 {sourceInitials(source)}
               </span>
