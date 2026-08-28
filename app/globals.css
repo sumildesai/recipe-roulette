@@ -77,7 +77,7 @@ small { color: #75655d; font-weight: 400; line-height: 1.35; }
 .wheel-wrap {
   position: relative; width: var(--wheel-size); aspect-ratio: 1; display: grid; place-items: center;
   --wheel-size: min(74vw, 390px);
-  --wheel-label-radius: calc(var(--wheel-size) * .325);
+  --wheel-label-radius: calc(var(--wheel-size) * .375);
 }
 .pointer {
   position: absolute; z-index: 4; top: -12px; width: 0; height: 0;
