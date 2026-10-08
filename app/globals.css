@@ -146,3 +146,36 @@ footer { margin-top: 54px; text-align: center; color: #7f6c61; font-size: .8rem;
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+.stats-page header a, .stats-page footer a, footer a { color: var(--orange); font-weight: 700; }
+.stats-page .status { min-height: auto; padding: 48px 24px; }
+.stats-page h1 { font-size: clamp(2.4rem, 7vw, 4.6rem); }
+.stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.stat-card {
+  display: grid; gap: 6px; padding: 20px; border-radius: 18px; background: white; border: 1px solid #eadac2;
+  box-shadow: 0 14px 50px rgba(74, 45, 27, .08);
+}
+.stat-card strong { font: 700 2.4rem/1 Georgia, serif; color: var(--orange); }
+.stat-card span { color: #6e5a50; font-size: .9rem; line-height: 1.4; }
+.stats-panel {
+  margin-bottom: 24px; padding: 24px; border-radius: 20px; background: rgba(255,255,255,.75); border: 1px solid #eadac2;
+}
+.stats-panel h2 { margin: 0 0 16px; font: 700 1.5rem/1.2 Georgia, serif; }
+.stats-panel h3 { margin: 0 0 10px; font-size: 1rem; }
+.stats-panel table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.stats-panel th, .stats-panel td { padding: 10px 8px; border-bottom: 1px solid #f0e3cf; text-align: left; vertical-align: top; }
+.stats-panel thead th { color: #75655d; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; }
+.stats-panel tbody th { font-weight: 600; }
+.stats-panel tbody th a { color: var(--ink); }
+.stats-panel tbody th small { display: block; color: #8b776c; font-weight: 400; margin-top: 2px; }
+.stats-note { color: #6e5a50; font-size: .9rem; line-height: 1.5; }
+.table-scroll { max-height: 520px; overflow: auto; }
+.confidence-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+.confidence-row { display: grid; grid-template-columns: 64px 1fr 40px; align-items: center; gap: 10px; margin-bottom: 8px; font-size: .9rem; }
+.confidence-bar { height: 12px; border-radius: 999px; background: var(--cream); overflow: hidden; }
+.confidence-bar span { display: block; height: 100%; background: var(--green); border-radius: 999px; }
+.run-facts { display: flex; flex-wrap: wrap; gap: 12px 28px; margin: 0; padding: 0; list-style: none; }
+@media (max-width: 760px) {
+  .stat-cards { grid-template-columns: 1fr 1fr; }
+  .confidence-grid { grid-template-columns: 1fr; }
+}

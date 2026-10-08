@@ -52,6 +52,14 @@ YOUTUBE_API_KEY=your-key OPENROUTER_API_KEY=your-openrouter-key npm run catalog:
 
 Without `OPENROUTER_API_KEY`, the generator logs how many classifications remain unresolved and continues; set `CLASSIFIER_REQUIRED=true` to fail instead. `JEV_MODEL` overrides the model id. The key is read only by the generator scripts.
 
+#### Classification report and `/stats`
+
+Every catalog run also writes a classification report that compares the regex answer, Jev's probabilities, and the final label for every recipe. It includes outcome counts (Jev, regex fallback, correction), how often Jev overruled the regex, confidence buckets, borderline calls near the threshold, confident "unclear" cuisines, and per-call cost, tokens, retries, and latency. Cached answers keep their probabilities, so the comparison covers the full catalog even when only a few videos are new.
+
+- The report goes to `public/classification-report.json` when the catalog output is `public/recipes.json`, and to `public/classification-report.local.json` otherwise (override with `CLASSIFICATION_REPORT_PATH`). Both are gitignored.
+- Run history (the last 100 runs) is kept in `.catalog-cache/classification-history.json` (override with `CLASSIFICATION_HISTORY_PATH`).
+- In GitHub Actions, the report is added to the job summary and uploaded as the `classification-report` artifact. The report and history are kept in their own cache, which every deploy restores, so the site's `/stats/` page keeps showing the latest refresh.
+
 Duration parsing recognizes numeric minute and hour units (`minute`, `minutes`, `min`, `mins`, `m`, `hour`, `hours`, `hr`, `hrs`, `h`), mixed hour/minute values, case differences, ordinary whitespace variation, and ranges such as `30-45 minutes`. Ranges are stored as `minMinutes`/`maxMinutes`; maximum-time filtering compares against `maxMinutes` so a recipe must fit within the selected cap even at the high end of a stated range. Labeled preparation, cooking, resting, marination, and total times remain separate in the generated `durations` metadata. An explicit total time is the overall duration used for filtering; otherwise preparation and cooking are summed as active time. Resting and marination are treated as passive and do not count toward the active-time fallback unless the source provides an explicit total that includes them. If there is exactly one unlabeled duration and no duration label appears nearby, it is treated as a total-time fallback; multiple unlabeled durations, malformed values, negative values, implausibly long values, and unsupported units are ignored instead of guessed. Recipes with no parsed overall duration remain available when no maximum-time cap is active and are excluded when a cap is set.
 
 ### Overrides

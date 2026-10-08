@@ -43,6 +43,23 @@ export interface JevClientOptions {
   timeoutMs?: number;
   maxRetries?: number;
   retryDelayMs?: number;
+  /** Called once per decision request with its outcome, for run metrics. */
+  onCall?: (stats: JevCallStats) => void;
+}
+
+export interface JevUsage {
+  inputTokens: number;
+  outputTokens: number;
+  /** USD, as reported by OpenRouter. */
+  cost: number;
+}
+
+export interface JevCallStats {
+  ok: boolean;
+  attempts: number;
+  /** Wall time including retries. */
+  latencyMs: number;
+  usage?: JevUsage;
 }
 
 const RETRYABLE_STATUS = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
@@ -57,6 +74,9 @@ export async function decideWithJev(request: JevRequest, options: JevClientOptio
   const maxRetries = options.maxRetries ?? 2;
   const retryDelayMs = options.retryDelayMs ?? 1_000;
   const body = JSON.stringify({ model: options.model ?? DEFAULT_JEV_MODEL, state: request.state, questions: request.questions });
+  const startedAt = Date.now();
+  const report = (ok: boolean, attempt: number, usage?: JevUsage) =>
+    options.onCall?.({ ok, attempts: attempt + 1, latencyMs: Date.now() - startedAt, ...(usage ? { usage } : {}) });
 
   for (let attempt = 0; ; attempt++) {
     let retryable = false;
@@ -69,8 +89,12 @@ export async function decideWithJev(request: JevRequest, options: JevClientOptio
         signal: AbortSignal.timeout(options.timeoutMs ?? 30_000)
       });
       if (response.ok) {
-        const answers = validateJevAnswers(await response.json(), request.questions);
-        if (answers) return answers;
+        const json: unknown = await response.json();
+        const answers = validateJevAnswers(json, request.questions);
+        if (answers) {
+          report(true, attempt, parseJevUsage(json));
+          return answers;
+        }
         failure = "response did not answer every question with the expected type";
       } else {
         retryable = RETRYABLE_STATUS.has(response.status);
@@ -82,6 +106,7 @@ export async function decideWithJev(request: JevRequest, options: JevClientOptio
     }
     if (!retryable || attempt >= maxRetries) {
       console.warn(`Jev decision request failed: ${failure}`);
+      report(false, attempt);
       return null;
     }
     await new Promise((resolve) => setTimeout(resolve, retryDelayMs * 2 ** attempt));
@@ -110,6 +135,13 @@ export function validateJevAnswers(body: unknown, questions: JevQuestions): JevA
     }
   }
   return answers;
+}
+
+export function parseJevUsage(body: unknown): JevUsage | undefined {
+  if (!isRecord(body) || !isRecord(body.usage)) return undefined;
+  const { input_tokens: inputTokens, output_tokens: outputTokens, cost } = body.usage;
+  if (typeof inputTokens !== "number" || typeof outputTokens !== "number") return undefined;
+  return { inputTokens, outputTokens, cost: typeof cost === "number" && Number.isFinite(cost) ? cost : 0 };
 }
 
 export async function mapWithConcurrency<T, R>(items: readonly T[], limit: number, worker: (item: T) => Promise<R>): Promise<R[]> {

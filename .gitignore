@@ -7,3 +7,5 @@ coverage/
 *.tsbuildinfo
 .catalog-cache/
 public/recipes.local.json
+public/classification-report.json
+public/classification-report.local.json

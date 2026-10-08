@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CUISINES,
@@ -294,7 +295,7 @@ export function RecipeRoulette() {
         </article>
       )}
 
-      <footer>Recipes sourced from the official Your Food Lab, Ranveer Brar, and Rainbow Plant Life YouTube channels, plus metadata-only NYT Cooking entries.</footer>
+      <footer>Recipes sourced from the official Your Food Lab, Ranveer Brar, and Rainbow Plant Life YouTube channels, plus metadata-only NYT Cooking entries. <Link href="/stats/">See how Jev classified them</Link>.</footer>
     </div>
   );
 }

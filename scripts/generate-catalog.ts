@@ -1,7 +1,7 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { appendFile, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { applyOverrides, CHANNELS, isCatalogCandidate, parseIsoDuration, type CatalogOverrides, type VideoSource } from "./catalog";
+import { applyOverrides, CHANNELS, inferCuisine, isCatalogCandidate, parseIsoDuration, type CatalogOverrides, type VideoSource } from "./catalog";
 import { classifyWithJev, type AiClassificationRequest, type AiClassificationResult } from "./ai-classification";
 import {
   applyAiCuisineResponse,
@@ -9,17 +9,27 @@ import {
   readAiCuisineCache,
   writeAiCuisineCache
 } from "./cuisine-classification";
-import { DEFAULT_JEV_MODEL } from "./jev-client";
 import {
+  buildClassificationReport,
+  readClassificationHistory,
+  renderStepSummary,
+  writeJsonFile
+} from "./classification-report";
+import { DEFAULT_JEV_MODEL, type JevCallStats } from "./jev-client";
+import {
+  AI_CONFIDENCE_THRESHOLD,
   applyAiMealResponse,
   inferMealClassification,
   mealClassificationCacheKey,
   readAiMealCache,
   writeAiMealCache,
+  type AiMealResponse,
   type MealClassification,
   type MealClassificationInput
 } from "./meal-classification";
-import type { Catalog, Cuisine } from "../lib/types";
+import type { AiCuisineResponse } from "./cuisine-classification";
+import type { RecipeClassificationDetail } from "../lib/classification-report";
+import type { Catalog, Cuisine, MealType } from "../lib/types";
 import { loadNytRecipes, NYT_COOKING_SOURCE } from "./nytimes-recipes";
 
 const API_ROOT = "https://www.googleapis.com/youtube/v3";
@@ -27,6 +37,11 @@ const outputPath = path.resolve(process.env.CATALOG_OUTPUT_PATH ?? "public/recip
 const overridesPath = path.resolve("data/catalog-overrides.json");
 const mealCachePath = path.resolve(".catalog-cache/meal-type-ai.json");
 const cuisineCachePath = path.resolve(".catalog-cache/cuisine-ai.json");
+const reportPath = path.resolve(
+  process.env.CLASSIFICATION_REPORT_PATH ??
+    path.join(path.dirname(outputPath), path.basename(outputPath) === "recipes.json" ? "classification-report.json" : "classification-report.local.json")
+);
+const historyPath = path.resolve(process.env.CLASSIFICATION_HISTORY_PATH ?? ".catalog-cache/classification-history.json");
 
 async function main() {
   const apiKey = process.env.YOUTUBE_API_KEY;
@@ -34,7 +49,7 @@ async function main() {
 
   const overrides = JSON.parse(await readFile(overridesPath, "utf8")) as CatalogOverrides;
   const videos = (await Promise.all(CHANNELS.map((channel) => fetchChannelVideos(channel, apiKey)))).flat();
-  const { meals, cuisines } = await classifyRecipes(videos, overrides);
+  const { meals, cuisines, details, calls, model } = await classifyRecipes(videos, overrides);
   const recipes = [...applyOverrides(videos, overrides, meals, cuisines), ...loadNytRecipes()]
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id));
   const catalog: Catalog = {
@@ -46,6 +61,25 @@ async function main() {
   };
   await writeFile(outputPath, `${JSON.stringify(catalog, null, 2)}\n`, "utf8");
   console.log(`Wrote ${recipes.length} recipes to ${outputPath}`);
+  await writeClassificationReport(details, calls, model);
+}
+
+async function writeClassificationReport(details: RecipeClassificationDetail[], calls: JevCallStats[], model: string) {
+  const report = buildClassificationReport({
+    generatedAt: new Date().toISOString(),
+    model,
+    threshold: AI_CONFIDENCE_THRESHOLD,
+    details,
+    calls,
+    history: await readClassificationHistory(historyPath)
+  });
+  await writeJsonFile(reportPath, report);
+  await writeJsonFile(historyPath, report.history);
+  if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, renderStepSummary(report), "utf8");
+  console.log(
+    `Wrote classification report to ${reportPath}: ${report.thisRun.calls} Jev calls, $${report.thisRun.costUsd.toFixed(5)}, ` +
+    `${report.disagreements.length} regex disagreements.`
+  );
 }
 
 export interface ClassifyRecipesDeps {
@@ -63,6 +97,11 @@ export interface RecipeClassifications {
    * missing from the map fall back to the regex rules.
    */
   cuisines: Map<string, Cuisine | null>;
+  /** Per-recipe regex vs Jev vs final labels, for the classification report. */
+  details: RecipeClassificationDetail[];
+  /** Stats for every Jev HTTP call made in this run. */
+  calls: JevCallStats[];
+  model: string;
 }
 
 const defaultClassifyRecipesDeps: ClassifyRecipesDeps = {
@@ -95,14 +134,59 @@ export async function classifyRecipes(
   const mealPending = new Set([...inputs.keys()].filter((videoId) => !overrides.corrections[videoId]?.mealTypes));
   const cuisinePending = new Set([...inputs.keys()].filter((videoId) => overrides.corrections[videoId]?.cuisine == null));
 
+  const model = process.env.JEV_MODEL || DEFAULT_JEV_MODEL;
+  const calls: JevCallStats[] = [];
+  const mealResponses = new Map<string, AiMealResponse>();
+  const cuisineResponses = new Map<string, AiCuisineResponse>();
+  const mealsByJevIds = new Set<string>();
+  const finish = (): RecipeClassifications => ({
+    meals,
+    cuisines,
+    calls,
+    model,
+    details: candidates.map((video) => {
+      const correction = overrides.corrections[video.videoId];
+      const input = inputs.get(video.videoId) ?? { title: video.title, description: video.description };
+      const regexMeals = inferMealClassification(input).labels;
+      const regexCuisine = inferCuisine(`${input.title} ${input.description}`);
+      const mealResponse = mealResponses.get(video.videoId);
+      const cuisineResponse = cuisineResponses.get(video.videoId);
+      return {
+        videoId: video.videoId,
+        title: input.title,
+        channelName: video.channelName,
+        regex: { mealTypes: regexMeals, cuisine: regexCuisine },
+        jev: {
+          ...(mealResponse && {
+            meal: Object.fromEntries(mealResponse.labels.map(({ label, confidence }) => [label, confidence])) as Partial<Record<MealType, number>>
+          }),
+          ...(cuisineResponse && {
+            cuisine: {
+              choice: cuisineResponse.cuisine ?? "unclear",
+              confidence: cuisineResponse.confidence,
+              ...(cuisineResponse.probabilities && { probabilities: cuisineResponse.probabilities })
+            }
+          })
+        },
+        final: {
+          mealTypes: correction?.mealTypes ?? meals.get(video.videoId)?.labels ?? regexMeals,
+          cuisine: correction?.cuisine ?? (cuisines.has(video.videoId) ? cuisines.get(video.videoId) ?? null : regexCuisine)
+        },
+        source: {
+          meal: correction?.mealTypes ? "correction" : mealsByJevIds.has(video.videoId) ? "jev" : "regex",
+          cuisine: correction?.cuisine != null ? "correction" : cuisines.has(video.videoId) ? "jev" : "regex"
+        }
+      };
+    })
+  });
+
   const openRouterKey = process.env.OPENROUTER_API_KEY;
   if (!openRouterKey) {
     if (process.env.CLASSIFIER_REQUIRED === "true") throw new Error("OPENROUTER_API_KEY is required for Jev classification");
     if (candidates.length) console.warn("OPENROUTER_API_KEY is not set; classifying meal types and cuisines with regex rules only.");
-    return { meals, cuisines };
+    return finish();
   }
 
-  const model = process.env.JEV_MODEL || DEFAULT_JEV_MODEL;
   const [mealCache, cuisineCache] = await Promise.all([deps.readAiMealCache(mealCachePath), deps.readAiCuisineCache(cuisineCachePath)]);
   const requests: AiClassificationRequest[] = [...new Set([...mealPending, ...cuisinePending])].flatMap((id) => {
     const input = inputs.get(id);
@@ -114,7 +198,7 @@ export async function classifyRecipes(
   let jevResults = new Map<string, AiClassificationResult>();
   if (requests.length) {
     try {
-      jevResults = await deps.classifyWithJev(requests, { apiKey: openRouterKey, model });
+      jevResults = await deps.classifyWithJev(requests, { apiKey: openRouterKey, model, onCall: (stats) => calls.push(stats) });
     } catch (error) {
       console.warn(`Jev classifier failed: ${error instanceof Error ? error.message : error}`);
     }
@@ -138,8 +222,12 @@ export async function classifyRecipes(
       mealCache.entries[key] = response;
       mealCacheChanged = true;
     }
+    mealResponses.set(videoId, response);
     const result = applyAiMealResponse(deterministic, response);
-    if (result !== deterministic) mealsByJev++;
+    if (result !== deterministic) {
+      mealsByJev++;
+      mealsByJevIds.add(videoId);
+    }
     meals.set(videoId, result);
   }
   for (const videoId of cuisinePending) {
@@ -155,6 +243,7 @@ export async function classifyRecipes(
       cuisineCache.entries[key] = response;
       cuisineCacheChanged = true;
     }
+    cuisineResponses.set(videoId, response);
     const cuisine = applyAiCuisineResponse(response);
     if (cuisine !== undefined) cuisines.set(videoId, cuisine);
   }
@@ -173,7 +262,7 @@ export async function classifyRecipes(
     `regexFallback=${cuisinePending.size - cuisines.size}.`
   );
   if (failures) console.warn(`${failures} AI classifications failed or returned invalid output.`);
-  return { meals, cuisines };
+  return finish();
 }
 
 async function fetchChannelVideos(channel: (typeof CHANNELS)[number], apiKey: string): Promise<VideoSource[]> {

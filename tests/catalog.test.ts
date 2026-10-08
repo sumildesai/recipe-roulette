@@ -226,7 +226,7 @@ describe("catalog inference", () => {
       expect(meal?.labels).toHaveLength(MEAL_TYPES.length);
       const implicit = inferMealClassification({ title: "Traditional Poha", description: "Flattened rice with peanuts." });
       expect(applyAiMealResponse(implicit, meal)).toMatchObject({ labels: ["breakfast"], needsAi: false });
-      expect(cuisineResponseFromJev(answers)).toEqual({ cuisine: "Indian", confidence: 0.91 });
+      expect(cuisineResponseFromJev(answers)).toEqual({ cuisine: "Indian", confidence: 0.91, probabilities: { Indian: 0.91, Global: 0.05, unclear: 0.04 } });
 
       const unclear = validateJevAnswers(jevBody({ cuisine: { type: "choice", choice: "unclear", confidence: 0.95 } }), questions) as JevAnswers;
       expect(cuisineResponseFromJev(unclear)).toEqual({ cuisine: null, confidence: 0.95 });
@@ -256,6 +256,25 @@ describe("catalog inference", () => {
       expect(JSON.parse(init.body)).toMatchObject({ model: DEFAULT_JEV_MODEL, state: { title: "Poha" } });
     });
 
+    it("reports latency, attempts, and usage for each Jev call", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      const onCall = vi.fn();
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce(new Response("busy", { status: 503 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ ...jevBody(), usage: { input_tokens: 1162, output_tokens: 185, cost: 0.0000488 } }), { status: 200 }));
+      await decideWithJev({ state: {}, questions }, { apiKey: "k", fetch: fetchMock, retryDelayMs: 0, onCall });
+      expect(onCall).toHaveBeenCalledWith({
+        ok: true,
+        attempts: 2,
+        latencyMs: expect.any(Number),
+        usage: { inputTokens: 1162, outputTokens: 185, cost: 0.0000488 }
+      });
+      const failing = vi.fn().mockResolvedValue(new Response("bad key", { status: 401 }));
+      onCall.mockClear();
+      await decideWithJev({ state: {}, questions }, { apiKey: "k", fetch: failing, retryDelayMs: 0, onCall });
+      expect(onCall).toHaveBeenCalledWith({ ok: false, attempts: 1, latencyMs: expect.any(Number) });
+    });
+
     it("returns null without retrying on non-transient errors or invalid bodies", async () => {
       vi.spyOn(console, "warn").mockImplementation(() => undefined);
       const unauthorized = vi.fn().mockResolvedValue(new Response("bad key", { status: 401 }));
@@ -278,7 +297,7 @@ describe("catalog inference", () => {
       expect(decide).toHaveBeenCalledTimes(2);
       expect(Object.keys(decide.mock.calls[1][0].questions)).toEqual(["cuisine"]);
       expect(results.get("both")).toMatchObject({ meal: expect.any(Object), cuisine: { cuisine: "Indian" } });
-      expect(results.get("cuisine-only")).toEqual({ cuisine: { cuisine: "Indian", confidence: 0.91 } });
+      expect(results.get("cuisine-only")).toMatchObject({ cuisine: { cuisine: "Indian", confidence: 0.91 } });
       expect(results.has("nothing")).toBe(false);
     });
 
@@ -415,7 +434,7 @@ describe("catalog inference", () => {
 
       expect(testDeps.classifyWithJev).toHaveBeenCalledWith(
         [{ id: implicitVideo.videoId, input: implicitInput, needsMeal: true, needsCuisine: true }],
-        { apiKey: "test-key", model: DEFAULT_JEV_MODEL }
+        expect.objectContaining({ apiKey: "test-key", model: DEFAULT_JEV_MODEL, onCall: expect.any(Function) })
       );
       expect(testDeps.writeAiMealCache).toHaveBeenCalledWith(expect.stringContaining("meal-type-ai.json"), {
         entries: { [mealClassificationCacheKey(implicitInput, DEFAULT_JEV_MODEL)]: mealResponse }
@@ -466,6 +485,50 @@ describe("catalog inference", () => {
       await classifyRecipes([implicitVideo], corrected, testDeps);
 
       expect(testDeps.classifyWithJev).not.toHaveBeenCalled();
+    });
+
+    it("returns per-recipe regex, Jev, and final labels plus call stats for the report", async () => {
+      process.env.OPENROUTER_API_KEY = "test-key";
+      vi.spyOn(console, "log").mockImplementation(() => undefined);
+      const resolvedVideo = { ...video, title: "Breakfast Paneer Masala" };
+      const testDeps = deps({
+        classifyWithJev: vi.fn().mockImplementation(async (_requests, options) => {
+          options.onCall({ ok: true, attempts: 1, latencyMs: 300, usage: { inputTokens: 100, outputTokens: 10, cost: 0.00005 } });
+          return new Map([[resolvedVideo.videoId, {
+            meal: { labels: [{ label: "lunch", confidence: 0.9, evidence: "x" }, { label: "breakfast", confidence: 0.2, evidence: "x" }] },
+            cuisine: { cuisine: "Indo-Chinese", confidence: 0.88, probabilities: { "Indo-Chinese": 0.88, Indian: 0.12 } }
+          }]]);
+        })
+      });
+
+      const { details, calls, model } = await classifyRecipes([resolvedVideo], overrides, testDeps);
+
+      expect(model).toBe(DEFAULT_JEV_MODEL);
+      expect(calls).toEqual([{ ok: true, attempts: 1, latencyMs: 300, usage: { inputTokens: 100, outputTokens: 10, cost: 0.00005 } }]);
+      expect(details).toEqual([{
+        videoId: resolvedVideo.videoId,
+        title: resolvedVideo.title,
+        channelName: resolvedVideo.channelName,
+        regex: { mealTypes: ["breakfast"], cuisine: "Indian" },
+        jev: {
+          meal: { lunch: 0.9, breakfast: 0.2 },
+          cuisine: { choice: "Indo-Chinese", confidence: 0.88, probabilities: { "Indo-Chinese": 0.88, Indian: 0.12 } }
+        },
+        final: { mealTypes: ["lunch"], cuisine: "Indo-Chinese" },
+        source: { meal: "jev", cuisine: "jev" }
+      }]);
+    });
+
+    it("marks corrections and regex fallbacks as the source in report details", async () => {
+      delete process.env.OPENROUTER_API_KEY;
+      delete process.env.CLASSIFIER_REQUIRED;
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      const corrected = { ...overrides, corrections: { [implicitVideo.videoId]: { mealTypes: ["snack" as const] } } };
+
+      const { details, calls } = await classifyRecipes([implicitVideo], corrected, deps());
+
+      expect(calls).toEqual([]);
+      expect(details[0]).toMatchObject({ final: { mealTypes: ["snack"] }, source: { meal: "correction", cuisine: "regex" }, jev: {} });
     });
 
     it("leaves classifications unresolved when Jev throws", async () => {

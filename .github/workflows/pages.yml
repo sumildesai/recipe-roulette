@@ -50,6 +50,15 @@ jobs:
           path: .catalog-cache/cuisine-ai.json
           key: cuisine-ai-cache-v1-${{ github.run_id }}
           restore-keys: cuisine-ai-cache-v1-
+      # Restored on every deploy so the /stats page keeps serving the last report.
+      - name: Restore classification report and history
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            public/classification-report.json
+            .catalog-cache/classification-history.json
+          key: classification-stats-v1-${{ github.run_id }}
+          restore-keys: classification-stats-v1-
       - name: Refresh catalog from official channels and metadata sources
         if: github.event_name == 'schedule' || inputs.refresh_catalog
         run: npm run catalog:generate
@@ -81,6 +90,22 @@ jobs:
         with:
           path: .catalog-cache/cuisine-ai.json
           key: cuisine-ai-cache-v1-${{ github.run_id }}
+      - name: Save classification report and history
+        if: (github.event_name == 'schedule' || inputs.refresh_catalog) && hashFiles('public/classification-report.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            public/classification-report.json
+            .catalog-cache/classification-history.json
+          key: classification-stats-v1-${{ github.run_id }}
+      - name: Upload classification report
+        if: (github.event_name == 'schedule' || inputs.refresh_catalog) && hashFiles('public/classification-report.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: classification-report
+          path: |
+            public/classification-report.json
+            .catalog-cache/classification-history.json
       - name: Report catalog in use
         if: github.event_name != 'schedule' && !inputs.refresh_catalog
         env:
