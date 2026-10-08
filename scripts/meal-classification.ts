@@ -7,7 +7,7 @@ import type { JevAnswers, JevQuestions } from "./jev-client";
 
 export const AI_CLASSIFIER_VERSION = "meal-type-v4-jev";
 export const AI_PROMPT_VERSION = "2026-10-07";
-export const AI_CONFIDENCE_THRESHOLD = 0.8;
+export const AI_CONFIDENCE_THRESHOLD = 0.7;
 
 export interface MealClassificationEvidence {
   source: "title" | "structured_metadata" | "prose" | "ai";

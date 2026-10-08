@@ -41,8 +41,8 @@ The generator fetches each channel's uploads, normalizes text and durations, exc
 
 Regex rules run first on every recipe. Only the cases they cannot settle go to [Jev](https://openrouter.ai/) (`typesafe/jev-1.13`) through OpenRouter's `POST /api/alpha/decisions` endpoint:
 
-- **Meal type**: recipes whose title, structured metadata, and prose conflict or give no signal. Jev answers one yes/no (`noul`) question per meal type, since a recipe can have several meal types; labels with probability at least `0.8` are kept.
-- **Cuisine**: recipes with no cuisine alias. Jev answers one `choice` question over the supported cuisines plus `unclear`. A confident pick (confidence at least `0.8`) is used; `unclear` or low-confidence picks keep the cuisine `null`.
+- **Meal type**: recipes whose title, structured metadata, and prose conflict or give no signal. Jev answers one yes/no (`noul`) question per meal type, since a recipe can have several meal types; labels with probability at least `0.7` are kept (Jev's yes/no scores for correct labels typically land around 0.7 to 0.9).
+- **Cuisine**: recipes with no cuisine alias. Jev answers one `choice` question over the supported cuisines plus `unclear`. A confident pick (confidence at least `0.7`) is used; `unclear` or low-confidence picks keep the cuisine `null`.
 
 A recipe that needs both gets a single request containing both sets of questions. Question criteria come from `MEAL_TYPE_DESCRIPTIONS` and `CUISINE_DESCRIPTIONS` in `scripts/classification-taxonomy.ts`. Corrections in `data/catalog-overrides.json` always take priority and are never sent to Jev. Validated responses are cached by content hash, classifier version, and model in `.catalog-cache/meal-type-ai.json` and `.catalog-cache/cuisine-ai.json`, so only new or edited videos are sent on later runs.
 

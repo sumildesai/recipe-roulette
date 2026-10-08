@@ -121,6 +121,12 @@ describe("catalog inference", () => {
       expect(applyAiMealResponse(implicit, {
         labels: [{ label: "breakfast", confidence: 0.5, evidence: "Maybe breakfast." }]
       })).toEqual(implicit);
+      expect(applyAiMealResponse(implicit, {
+        labels: [
+          { label: "lunch", confidence: 0.72, evidence: "Jev noul probability 0.720" },
+          { label: "dinner", confidence: 0.69, evidence: "Jev noul probability 0.690" }
+        ]
+      })).toMatchObject({ labels: ["lunch"], needsAi: false });
       expect(validateAiMealResponse({ labels: [] })).toEqual({ labels: [] });
       expect(validateAiMealResponse({
         labels: [{ label: "dessert", confidence: 0.95, evidence: "A traditional sweet dish." }]
@@ -226,6 +232,8 @@ describe("catalog inference", () => {
       expect(cuisineResponseFromJev(unclear)).toEqual({ cuisine: null, confidence: 0.95 });
       expect(applyAiCuisineResponse({ cuisine: null, confidence: 0.95 })).toBeNull();
       expect(applyAiCuisineResponse({ cuisine: "Italian", confidence: 0.5 })).toBeNull();
+      expect(applyAiCuisineResponse({ cuisine: "Italian", confidence: 0.69 })).toBeNull();
+      expect(applyAiCuisineResponse({ cuisine: "Italian", confidence: 0.72 })).toBe("Italian");
       expect(applyAiCuisineResponse({ cuisine: "Italian", confidence: 0.85 })).toBe("Italian");
     });
 
