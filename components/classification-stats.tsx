@@ -11,12 +11,12 @@ import type {
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const CATALOG_VERSION = process.env.NEXT_PUBLIC_CATALOG_VERSION ?? "local";
-const REPORT_PATHS = process.env.NODE_ENV === "production"
-  ? ["classification-report.json"]
-  : ["classification-report.local.json", "classification-report.json"];
+const reportPaths = (name: string) => process.env.NODE_ENV === "production"
+  ? [`${name}.json`]
+  : [`${name}.local.json`, `${name}.json`];
 
-async function fetchReport(signal: AbortSignal): Promise<ClassificationReport | null> {
-  for (const reportPath of REPORT_PATHS) {
+async function fetchReport(name: string, signal: AbortSignal): Promise<ClassificationReport | null> {
+  for (const reportPath of reportPaths(name)) {
     const response = await fetch(`${BASE_PATH}/${reportPath}?v=${encodeURIComponent(CATALOG_VERSION)}`, { signal, cache: "no-store" });
     if (response.ok) return response.json() as Promise<ClassificationReport>;
     if (response.status !== 404) throw new Error(`Report request failed (${response.status})`);
@@ -26,11 +26,14 @@ async function fetchReport(signal: AbortSignal): Promise<ClassificationReport | 
 
 export function ClassificationStats() {
   const [report, setReport] = useState<ClassificationReport | null | undefined>(undefined);
+  const [baseline, setBaseline] = useState<ClassificationReport | null>(null);
+  const [view, setView] = useState<"latest" | "baseline">("latest");
   const [error, setError] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchReport(controller.signal)
+    fetchReport("classification-baseline", controller.signal).then(setBaseline).catch(() => undefined);
+    fetchReport("classification-report", controller.signal)
       .then(setReport)
       .catch((reason: unknown) => {
         if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Could not load the report");
@@ -53,10 +56,33 @@ export function ClassificationStats() {
         <section className="status error" role="alert"><p>{error}</p></section>
       ) : report === undefined ? (
         <section className="status"><p>Loading report…</p></section>
-      ) : report === null ? (
+      ) : report === null && !baseline ? (
         <section className="status"><p>No classification report yet. One is published after the next catalog refresh.</p></section>
       ) : (
-        <Report report={report} />
+        <>
+          {baseline && report && (
+            <div className="stats-tabs" role="tablist" aria-label="Report">
+              <button type="button" role="tab" aria-selected={view === "latest"} onClick={() => setView("latest")}>
+                Latest run
+              </button>
+              <button type="button" role="tab" aria-selected={view === "baseline"} onClick={() => setView("baseline")}>
+                First full run ({formatDate(baseline.generatedAt)})
+              </button>
+            </div>
+          )}
+          {view === "baseline" || !report ? (
+            <>
+              {baseline && (
+                <p className="stats-note stats-baseline-note">
+                  Pinned snapshot of the first refresh where Jev classified the whole catalog. Later runs never replace it.
+                </p>
+              )}
+              {baseline && <Report report={baseline} />}
+            </>
+          ) : (
+            <Report report={report} />
+          )}
+        </>
       )}
     </div>
   );

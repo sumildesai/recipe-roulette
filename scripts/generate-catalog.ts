@@ -11,6 +11,7 @@ import {
 } from "./cuisine-classification";
 import {
   buildClassificationReport,
+  pinBaselineReport,
   readClassificationHistory,
   renderStepSummary,
   writeJsonFile
@@ -40,6 +41,9 @@ const cuisineCachePath = path.resolve(".catalog-cache/cuisine-ai.json");
 const reportPath = path.resolve(
   process.env.CLASSIFICATION_REPORT_PATH ??
     path.join(path.dirname(outputPath), path.basename(outputPath) === "recipes.json" ? "classification-report.json" : "classification-report.local.json")
+);
+const baselinePath = path.resolve(
+  process.env.CLASSIFICATION_BASELINE_PATH ?? reportPath.replace(/classification-report(\.local)?\.json$/, "classification-baseline$1.json")
 );
 const historyPath = path.resolve(process.env.CLASSIFICATION_HISTORY_PATH ?? ".catalog-cache/classification-history.json");
 
@@ -75,6 +79,7 @@ async function writeClassificationReport(details: RecipeClassificationDetail[], 
   });
   await writeJsonFile(reportPath, report);
   await writeJsonFile(historyPath, report.history);
+  if (await pinBaselineReport(baselinePath, report)) console.log(`Pinned this run as the classification baseline at ${baselinePath}`);
   if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, renderStepSummary(report), "utf8");
   console.log(
     `Wrote classification report to ${reportPath}: ${report.thisRun.calls} Jev calls, $${report.thisRun.costUsd.toFixed(5)}, ` +

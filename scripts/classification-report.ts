@@ -136,6 +136,30 @@ function roundUsd(value: number): number {
   return Math.round(value * 1e8) / 1e8;
 }
 
+export const BASELINE_MIN_RECIPES = 20;
+
+/**
+ * The first run where Jev answered for most of the catalog (normally the first
+ * full refresh) is pinned as a baseline so its call counts and cost survive
+ * later, mostly cached runs.
+ */
+export function isBaselineCandidate(report: ClassificationReport): boolean {
+  return report.recipes >= BASELINE_MIN_RECIPES && report.thisRun.succeeded >= report.recipes / 2;
+}
+
+/** Writes the baseline only if none exists yet. Returns whether it was written. */
+export async function pinBaselineReport(baselinePath: string, report: ClassificationReport): Promise<boolean> {
+  if (!isBaselineCandidate(report)) return false;
+  try {
+    await mkdir(path.dirname(baselinePath), { recursive: true });
+    await writeFile(baselinePath, `${JSON.stringify(report, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") return false;
+    throw error;
+  }
+}
+
 export async function readClassificationHistory(historyPath: string): Promise<ClassificationRunSummary[]> {
   try {
     const value: unknown = JSON.parse(await readFile(historyPath, "utf8"));

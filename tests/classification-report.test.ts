@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { ClassificationRunSummary, RecipeClassificationDetail } from "@/lib/classification-report";
-import { buildClassificationReport, callMetrics, HISTORY_LIMIT, percentile, renderStepSummary } from "@/scripts/classification-report";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import {
+  buildClassificationReport,
+  callMetrics,
+  HISTORY_LIMIT,
+  isBaselineCandidate,
+  percentile,
+  pinBaselineReport,
+  renderStepSummary
+} from "@/scripts/classification-report";
 
 function detail(overrides: Partial<RecipeClassificationDetail> & { videoId: string }): RecipeClassificationDetail {
   return {
@@ -90,5 +101,27 @@ describe("classification report", () => {
     expect(markdown).toContain("## Jev classification report");
     expect(markdown).toContain("| Decided by Jev | 2 | 2 |");
     expect(markdown).toContain("Mushroom Momo \\| Pockets | drink / none | snack / none |");
+  });
+});
+
+describe("baseline pinning", () => {
+  const full = (recipes: number, succeeded: number) => buildClassificationReport({
+    generatedAt: "2026-10-09T05:17:00.000Z", model: "m", threshold: 0.7, history: [],
+    details: Array.from({ length: recipes }, (_, index) => detail({ videoId: `v${index}` })),
+    calls: Array.from({ length: succeeded }, () => ({ ok: true, attempts: 1, latencyMs: 300 }))
+  });
+
+  it("pins only the first run where Jev answered for most of the catalog", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "baseline-"));
+    const baselinePath = path.join(dir, "classification-baseline.json");
+    try {
+      expect(isBaselineCandidate(full(10, 10))).toBe(false);
+      expect(await pinBaselineReport(baselinePath, full(100, 3))).toBe(false);
+      expect(await pinBaselineReport(baselinePath, full(100, 95))).toBe(true);
+      expect(await pinBaselineReport(baselinePath, full(120, 120))).toBe(false);
+      expect(JSON.parse(await readFile(baselinePath, "utf8"))).toMatchObject({ recipes: 100, thisRun: { calls: 95 } });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ClassificationStats } from "@/components/classification-stats";
 import { buildClassificationReport } from "@/scripts/classification-report";
@@ -21,9 +21,11 @@ const report = buildClassificationReport({
   }]
 });
 
-function respond(...responses: Array<{ ok: boolean; status: number; body?: unknown }>) {
-  const mock = vi.fn();
-  for (const { ok, status, body } of responses) mock.mockResolvedValueOnce({ ok, status, json: async () => body });
+function serve(files: Record<string, unknown>) {
+  const mock = vi.fn(async (url: string) => {
+    const name = Object.keys(files).find((file) => url.includes(`/${file}?`));
+    return name ? { ok: true, status: 200, json: async () => files[name] } : { ok: false, status: 404, json: async () => null };
+  });
   vi.stubGlobal("fetch", mock);
   return mock;
 }
@@ -32,12 +34,14 @@ describe("ClassificationStats", () => {
   beforeEach(() => vi.unstubAllGlobals());
 
   it("shows headline numbers and where Jev overruled the keyword rules", async () => {
-    const fetchMock = respond({ ok: false, status: 404 }, { ok: true, status: 200, body: report });
+    const fetchMock = serve({ "classification-report.json": report });
     render(<ClassificationStats />);
 
     expect(await screen.findByText("Where Jev overruled the keyword rules (1)")).toBeInTheDocument();
-    expect(fetchMock.mock.calls[0][0]).toContain("classification-report.local.json");
-    expect(fetchMock.mock.calls[1][0]).toContain("classification-report.json");
+    const urls = fetchMock.mock.calls.map(([url]) => url);
+    expect(urls.findIndex((url) => url.includes("classification-report.local.json")))
+      .toBeLessThan(urls.findIndex((url) => url.includes("classification-report.json")));
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
     expect(screen.getByText("labels where Jev overruled the keyword rules").previousSibling).toHaveTextContent("2");
     expect(screen.getAllByRole("link", { name: "Mushroom Momo Pockets" })[0]).toHaveAttribute("href", "https://www.youtube.com/watch?v=momo");
     expect(screen.getAllByText("drink · no cuisine")).toHaveLength(2);
@@ -46,8 +50,21 @@ describe("ClassificationStats", () => {
   });
 
   it("explains when no report has been published yet", async () => {
-    respond({ ok: false, status: 404 }, { ok: false, status: 404 });
+    serve({});
     render(<ClassificationStats />);
     expect(await screen.findByText(/No classification report yet/)).toBeInTheDocument();
+  });
+
+  it("switches to the pinned first full run when a baseline exists", async () => {
+    const baseline = { ...report, generatedAt: "2026-10-09T05:17:00.000Z", recipes: 812, thisRun: { ...report.thisRun, calls: 812 } };
+    serve({ "classification-report.json": { ...report, generatedAt: "2026-10-12T05:17:00.000Z" }, "classification-baseline.json": baseline });
+    render(<ClassificationStats />);
+
+    const baselineTab = await screen.findByRole("tab", { name: /First full run/ });
+    expect(screen.getByRole("tab", { name: "Latest run" })).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(baselineTab);
+    expect(baselineTab).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText(/Later runs never replace it/)).toBeInTheDocument();
+    expect(screen.getByText("recipes classified").previousSibling).toHaveTextContent("812");
   });
 });

@@ -179,3 +179,9 @@ footer { margin-top: 54px; text-align: center; color: #7f6c61; font-size: .8rem;
   .stat-cards { grid-template-columns: 1fr 1fr; }
   .confidence-grid { grid-template-columns: 1fr; }
 }
+.stats-tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 24px; }
+.stats-tabs button {
+  border: 1px solid #cdbda8; border-radius: 999px; padding: 10px 18px; background: white; color: var(--ink); font-weight: 700; cursor: pointer;
+}
+.stats-tabs button[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: white; }
+.stats-baseline-note { text-align: center; }
