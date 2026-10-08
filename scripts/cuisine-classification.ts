@@ -6,7 +6,7 @@ import { CUISINE_DESCRIPTIONS, CUISINE_UNCLEAR_DESCRIPTION } from "./classificat
 import type { JevAnswers, JevQuestions } from "./jev-client";
 import { AI_CONFIDENCE_THRESHOLD, type MealClassificationInput } from "./meal-classification";
 
-export const CUISINE_CLASSIFIER_VERSION = "cuisine-v1-jev";
+export const CUISINE_CLASSIFIER_VERSION = "cuisine-v2-jev";
 export const CUISINE_QUESTION = "cuisine";
 export const CUISINE_UNCLEAR = "unclear";
 
@@ -49,10 +49,14 @@ export function validateAiCuisineResponse(value: unknown): AiCuisineResponse | n
   return { cuisine: cuisine as Cuisine | null, confidence };
 }
 
-/** Returns the AI cuisine only when it is a confident, specific pick. */
-export function applyAiCuisineResponse(response: unknown): Cuisine | null {
+/**
+ * Returns Jev's cuisine when it is confident: a cuisine, or `null` for a confident
+ * "unclear". Returns `undefined` when the response is invalid or below the
+ * threshold, so the caller can fall back to the regex rules.
+ */
+export function applyAiCuisineResponse(response: unknown): Cuisine | null | undefined {
   const validated = validateAiCuisineResponse(response);
-  return validated && validated.confidence >= AI_CONFIDENCE_THRESHOLD ? validated.cuisine : null;
+  return validated && validated.confidence >= AI_CONFIDENCE_THRESHOLD ? validated.cuisine : undefined;
 }
 
 export function cuisineClassificationCacheKey(input: MealClassificationInput, model = ""): string {

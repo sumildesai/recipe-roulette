@@ -231,8 +231,10 @@ describe("catalog inference", () => {
       const unclear = validateJevAnswers(jevBody({ cuisine: { type: "choice", choice: "unclear", confidence: 0.95 } }), questions) as JevAnswers;
       expect(cuisineResponseFromJev(unclear)).toEqual({ cuisine: null, confidence: 0.95 });
       expect(applyAiCuisineResponse({ cuisine: null, confidence: 0.95 })).toBeNull();
-      expect(applyAiCuisineResponse({ cuisine: "Italian", confidence: 0.5 })).toBeNull();
-      expect(applyAiCuisineResponse({ cuisine: "Italian", confidence: 0.69 })).toBeNull();
+      expect(applyAiCuisineResponse({ cuisine: null, confidence: 0.5 })).toBeUndefined();
+      expect(applyAiCuisineResponse({ cuisine: "Italian", confidence: 0.5 })).toBeUndefined();
+      expect(applyAiCuisineResponse({ cuisine: "Italian", confidence: 0.69 })).toBeUndefined();
+      expect(applyAiCuisineResponse({ cuisine: "Klingon", confidence: 0.9 })).toBeUndefined();
       expect(applyAiCuisineResponse({ cuisine: "Italian", confidence: 0.72 })).toBe("Italian");
       expect(applyAiCuisineResponse({ cuisine: "Italian", confidence: 0.85 })).toBe("Italian");
     });
@@ -347,14 +349,42 @@ describe("catalog inference", () => {
       expect(cuisines.size).toBe(0);
     });
 
-    it("does not send recipes the regex rules fully resolve", async () => {
+    it("sends regex-resolved recipes to Jev and lets confident answers override the regex", async () => {
       process.env.OPENROUTER_API_KEY = "test-key";
       vi.spyOn(console, "log").mockImplementation(() => undefined);
-      const testDeps = deps();
+      const resolvedVideo = { ...video, title: "Breakfast Paneer Masala" };
+      expect(inferCuisine(`${resolvedVideo.title} ${resolvedVideo.description}`)).toBe("Indian");
+      const testDeps = deps({
+        classifyWithJev: vi.fn().mockResolvedValue(new Map([[resolvedVideo.videoId, {
+          meal: { labels: [{ label: "lunch", confidence: 0.9, evidence: "Jev noul probability 0.900" }] },
+          cuisine: { cuisine: "Indo-Chinese", confidence: 0.9 }
+        }]]))
+      });
 
-      await classifyRecipes([{ ...video, title: "Breakfast Paneer Masala" }], overrides, testDeps);
+      const { meals, cuisines } = await classifyRecipes([resolvedVideo], overrides, testDeps);
 
-      expect(testDeps.classifyWithJev).not.toHaveBeenCalled();
+      expect(testDeps.classifyWithJev).toHaveBeenCalledWith(
+        [expect.objectContaining({ id: resolvedVideo.videoId, needsMeal: true, needsCuisine: true })],
+        expect.anything()
+      );
+      expect(applyOverrides([resolvedVideo], overrides, meals, cuisines)[0]).toMatchObject({ mealTypes: ["lunch"], cuisine: "Indo-Chinese" });
+    });
+
+    it("falls back to the regex when Jev is below the threshold", async () => {
+      process.env.OPENROUTER_API_KEY = "test-key";
+      vi.spyOn(console, "log").mockImplementation(() => undefined);
+      const resolvedVideo = { ...video, title: "Breakfast Paneer Masala" };
+      const testDeps = deps({
+        classifyWithJev: vi.fn().mockResolvedValue(new Map([[resolvedVideo.videoId, {
+          meal: { labels: [{ label: "lunch", confidence: 0.6, evidence: "Jev noul probability 0.600" }] },
+          cuisine: { cuisine: "Italian", confidence: 0.6 }
+        }]]))
+      });
+
+      const { meals, cuisines } = await classifyRecipes([resolvedVideo], overrides, testDeps);
+
+      expect(cuisines.size).toBe(0);
+      expect(applyOverrides([resolvedVideo], overrides, meals, cuisines)[0]).toMatchObject({ mealTypes: ["breakfast"], cuisine: "Indian" });
     });
 
     it("reuses cache hits without calling Jev", async () => {
@@ -399,22 +429,32 @@ describe("catalog inference", () => {
       expect(applyOverrides([implicitVideo], overrides, meals, cuisines)[0]).toMatchObject({ mealTypes: ["breakfast"], cuisine: "Indian" });
     });
 
-    it("asks only for cuisine when regex resolves the meal type, and leaves unclear cuisines null", async () => {
+    it("keeps a confident unclear cuisine null even when the regex finds one", async () => {
       process.env.OPENROUTER_API_KEY = "test-key";
       vi.spyOn(console, "log").mockImplementation(() => undefined);
-      const breakfastVideo = { ...implicitVideo, title: "Breakfast Avocado Toast" };
+      const resolvedVideo = { ...video, title: "Breakfast Paneer Masala" };
       const testDeps = deps({
-        classifyWithJev: vi.fn().mockResolvedValue(new Map([[breakfastVideo.videoId, { cuisine: { cuisine: null, confidence: 0.9 } }]]))
+        classifyWithJev: vi.fn().mockResolvedValue(new Map([[resolvedVideo.videoId, { cuisine: { cuisine: null, confidence: 0.9 } }]]))
       });
 
-      const { cuisines } = await classifyRecipes([breakfastVideo], overrides, testDeps);
+      const { cuisines } = await classifyRecipes([resolvedVideo], overrides, testDeps);
+
+      expect(cuisines.get(resolvedVideo.videoId)).toBeNull();
+      expect(applyOverrides([resolvedVideo], overrides, undefined, cuisines)[0].cuisine).toBeNull();
+    });
+
+    it("asks only for the fields that corrections leave open", async () => {
+      process.env.OPENROUTER_API_KEY = "test-key";
+      vi.spyOn(console, "log").mockImplementation(() => undefined);
+      const testDeps = deps();
+      const corrected = { ...overrides, corrections: { [implicitVideo.videoId]: { mealTypes: ["snack" as const] } } };
+
+      await classifyRecipes([implicitVideo], corrected, testDeps);
 
       expect(testDeps.classifyWithJev).toHaveBeenCalledWith(
         [expect.objectContaining({ needsMeal: false, needsCuisine: true })],
         expect.anything()
       );
-      expect(cuisines.size).toBe(0);
-      expect(applyOverrides([breakfastVideo], overrides, undefined, cuisines)[0].cuisine).toBeNull();
     });
 
     it("does not ask Jev about fields that corrections already set", async () => {

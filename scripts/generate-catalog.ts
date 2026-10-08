@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { applyOverrides, CHANNELS, inferCuisine, isCatalogCandidate, parseIsoDuration, type CatalogOverrides, type VideoSource } from "./catalog";
+import { applyOverrides, CHANNELS, isCatalogCandidate, parseIsoDuration, type CatalogOverrides, type VideoSource } from "./catalog";
 import { classifyWithJev, type AiClassificationRequest, type AiClassificationResult } from "./ai-classification";
 import {
   applyAiCuisineResponse,
@@ -58,8 +58,11 @@ export interface ClassifyRecipesDeps {
 
 export interface RecipeClassifications {
   meals: Map<string, MealClassification>;
-  /** Cuisines assigned by the AI fallback, only for recipes the regex rules left unclassified. */
-  cuisines: Map<string, Cuisine>;
+  /**
+   * Jev's confident cuisine per recipe (`null` = confidently unclear). Recipes
+   * missing from the map fall back to the regex rules.
+   */
+  cuisines: Map<string, Cuisine | null>;
 }
 
 const defaultClassifyRecipesDeps: ClassifyRecipesDeps = {
@@ -71,8 +74,9 @@ const defaultClassifyRecipesDeps: ClassifyRecipesDeps = {
 };
 
 /**
- * Runs the regex rules on every candidate, then sends only unresolved meal types
- * and unclassified cuisines to Jev. Corrections always take priority.
+ * Asks Jev for every candidate's meal types and cuisine, skipping fields already
+ * set by a correction. The regex rules are the fallback when Jev fails or is
+ * below the confidence threshold. Corrections always take priority.
  */
 export async function classifyRecipes(
   videos: VideoSource[],
@@ -87,35 +91,24 @@ export async function classifyRecipes(
     return [video.videoId, { title: correction?.title ?? video.title, description: correction?.description ?? video.description }];
   }));
   const meals = new Map([...inputs].map(([videoId, input]) => [videoId, inferMealClassification(input)]));
-  const cuisines = new Map<string, Cuisine>();
-  const mealUnresolved = new Set(
-    [...meals].filter(([videoId, result]) => result.needsAi && !overrides.corrections[videoId]?.mealTypes).map(([videoId]) => videoId)
-  );
-  const cuisineUnresolved = new Set(
-    [...inputs]
-      .filter(([videoId, input]) => overrides.corrections[videoId]?.cuisine == null && inferCuisine(`${input.title} ${input.description}`) === null)
-      .map(([videoId]) => videoId)
-  );
+  const cuisines = new Map<string, Cuisine | null>();
+  const mealPending = new Set([...inputs.keys()].filter((videoId) => !overrides.corrections[videoId]?.mealTypes));
+  const cuisinePending = new Set([...inputs.keys()].filter((videoId) => overrides.corrections[videoId]?.cuisine == null));
 
   const openRouterKey = process.env.OPENROUTER_API_KEY;
   if (!openRouterKey) {
     if (process.env.CLASSIFIER_REQUIRED === "true") throw new Error("OPENROUTER_API_KEY is required for Jev classification");
-    if (mealUnresolved.size || cuisineUnresolved.size) {
-      console.warn(
-        `${mealUnresolved.size} meal and ${cuisineUnresolved.size} cuisine classifications unresolved; ` +
-        "set OPENROUTER_API_KEY to enable Jev classification."
-      );
-    }
+    if (candidates.length) console.warn("OPENROUTER_API_KEY is not set; classifying meal types and cuisines with regex rules only.");
     return { meals, cuisines };
   }
 
   const model = process.env.JEV_MODEL || DEFAULT_JEV_MODEL;
   const [mealCache, cuisineCache] = await Promise.all([deps.readAiMealCache(mealCachePath), deps.readAiCuisineCache(cuisineCachePath)]);
-  const requests: AiClassificationRequest[] = [...new Set([...mealUnresolved, ...cuisineUnresolved])].flatMap((id) => {
+  const requests: AiClassificationRequest[] = [...new Set([...mealPending, ...cuisinePending])].flatMap((id) => {
     const input = inputs.get(id);
     if (!input) return [];
-    const needsMeal = mealUnresolved.has(id) && !mealCache.entries[mealClassificationCacheKey(input, model)];
-    const needsCuisine = cuisineUnresolved.has(id) && !cuisineCache.entries[cuisineClassificationCacheKey(input, model)];
+    const needsMeal = mealPending.has(id) && !mealCache.entries[mealClassificationCacheKey(input, model)];
+    const needsCuisine = cuisinePending.has(id) && !cuisineCache.entries[cuisineClassificationCacheKey(input, model)];
     return needsMeal || needsCuisine ? [{ id, input, needsMeal, needsCuisine }] : [];
   });
   let jevResults = new Map<string, AiClassificationResult>();
@@ -130,7 +123,8 @@ export async function classifyRecipes(
   let mealCacheChanged = false;
   let cuisineCacheChanged = false;
   let failures = 0;
-  for (const videoId of mealUnresolved) {
+  let mealsByJev = 0;
+  for (const videoId of mealPending) {
     const input = inputs.get(videoId);
     const deterministic = meals.get(videoId);
     if (!input || !deterministic) continue;
@@ -144,9 +138,11 @@ export async function classifyRecipes(
       mealCache.entries[key] = response;
       mealCacheChanged = true;
     }
-    meals.set(videoId, applyAiMealResponse(deterministic, response));
+    const result = applyAiMealResponse(deterministic, response);
+    if (result !== deterministic) mealsByJev++;
+    meals.set(videoId, result);
   }
-  for (const videoId of cuisineUnresolved) {
+  for (const videoId of cuisinePending) {
     const input = inputs.get(videoId);
     if (!input) continue;
     const key = cuisineClassificationCacheKey(input, model);
@@ -160,23 +156,21 @@ export async function classifyRecipes(
       cuisineCacheChanged = true;
     }
     const cuisine = applyAiCuisineResponse(response);
-    if (cuisine) cuisines.set(videoId, cuisine);
+    if (cuisine !== undefined) cuisines.set(videoId, cuisine);
   }
   if (mealCacheChanged) await deps.writeAiMealCache(mealCachePath, mealCache);
   if (cuisineCacheChanged) await deps.writeAiCuisineCache(cuisineCachePath, cuisineCache);
 
-  const mealsRemaining = [...mealUnresolved].filter((id) => meals.get(id)?.needsAi).length;
-  const mealsSent = requests.filter(({ needsMeal }) => needsMeal);
-  const cuisinesSent = requests.filter(({ needsCuisine }) => needsCuisine);
+  const mealsSent = requests.filter(({ needsMeal }) => needsMeal).length;
+  const cuisinesSent = requests.filter(({ needsCuisine }) => needsCuisine).length;
   console.log(
     `Classification summary: candidates=${candidates.length}, model=${model}, jevRequests=${requests.length}, ` +
     `validJevResponses=${jevResults.size}. ` +
-    `Meal: resolvedByRules=${candidates.length - mealUnresolved.size}, cacheHits=${mealUnresolved.size - mealsSent.length}, ` +
-    `sentToJev=${mealsSent.length}, resolvedByJev=${mealsSent.filter(({ id }) => meals.get(id)?.needsAi === false).length}, ` +
-    `unresolved=${mealsRemaining}. ` +
-    `Cuisine: resolvedByRules=${candidates.length - cuisineUnresolved.size}, cacheHits=${cuisineUnresolved.size - cuisinesSent.length}, ` +
-    `sentToJev=${cuisinesSent.length}, resolvedByJev=${cuisinesSent.filter(({ id }) => cuisines.has(id)).length}, ` +
-    `unresolved=${cuisineUnresolved.size - cuisines.size}.`
+    `Meal: corrected=${candidates.length - mealPending.size}, cacheHits=${mealPending.size - mealsSent}, sentToJev=${mealsSent}, ` +
+    `decidedByJev=${mealsByJev}, regexFallback=${mealPending.size - mealsByJev}. ` +
+    `Cuisine: corrected=${candidates.length - cuisinePending.size}, cacheHits=${cuisinePending.size - cuisinesSent}, sentToJev=${cuisinesSent}, ` +
+    `decidedByJev=${cuisines.size} (unclear=${[...cuisines.values()].filter((value) => value === null).length}), ` +
+    `regexFallback=${cuisinePending.size - cuisines.size}.`
   );
   if (failures) console.warn(`${failures} AI classifications failed or returned invalid output.`);
   return { meals, cuisines };
