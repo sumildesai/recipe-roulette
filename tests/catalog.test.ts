@@ -20,12 +20,24 @@ import {
   applyAiMealResponse,
   inferMealClassification,
   mealClassificationCacheKey,
+  mealJevQuestions,
+  mealResponseFromJev,
   readAiMealCache,
-  validateCopilotMealResponse,
   validateAiMealResponse,
   writeAiMealCache
 } from "@/scripts/meal-classification";
-import { classifyMealTypes } from "@/scripts/generate-catalog";
+import {
+  applyAiCuisineResponse,
+  cuisineClassificationCacheKey,
+  cuisineJevQuestions,
+  cuisineResponseFromJev,
+  readAiCuisineCache,
+  writeAiCuisineCache
+} from "@/scripts/cuisine-classification";
+import { buildJevQuestions, classifyWithJev } from "@/scripts/ai-classification";
+import { decideWithJev, DEFAULT_JEV_MODEL, JEV_ENDPOINT, validateJevAnswers, type JevAnswers } from "@/scripts/jev-client";
+import { classifyRecipes, type ClassifyRecipesDeps } from "@/scripts/generate-catalog";
+import { CUISINES, MEAL_TYPES } from "@/lib/types";
 import { normalizeNytRecipe } from "@/scripts/nytimes-recipes";
 
 const video: VideoSource = {
@@ -109,29 +121,17 @@ describe("catalog inference", () => {
       expect(applyAiMealResponse(implicit, {
         labels: [{ label: "breakfast", confidence: 0.5, evidence: "Maybe breakfast." }]
       })).toEqual(implicit);
+      expect(applyAiMealResponse(implicit, {
+        labels: [
+          { label: "lunch", confidence: 0.72, evidence: "Jev noul probability 0.720" },
+          { label: "dinner", confidence: 0.69, evidence: "Jev noul probability 0.690" }
+        ]
+      })).toMatchObject({ labels: ["lunch"], needsAi: false });
       expect(validateAiMealResponse({ labels: [] })).toEqual({ labels: [] });
       expect(validateAiMealResponse({
         labels: [{ label: "dessert", confidence: 0.95, evidence: "A traditional sweet dish." }]
       })).not.toBeNull();
       expect(validateAiMealResponse({ labels: [{ label: "brunch", confidence: 1, evidence: "Invalid taxonomy." }] })).toBeNull();
-    });
-
-    it("accepts Copilot batches only when every requested recipe is mapped exactly once", () => {
-      const valid = JSON.stringify({
-        recipes: [{ id: "poha", labels: [{ label: "breakfast", confidence: 0.92, evidence: "A customary morning dish." }] }]
-      });
-      expect(validateCopilotMealResponse(valid, new Set(["poha"]))).toEqual({
-        recipes: [{ id: "poha", labels: [{ label: "breakfast", confidence: 0.92, evidence: "A customary morning dish." }] }]
-      });
-      expect(validateCopilotMealResponse('{"recipes":[]}', new Set(["poha"]))).toBeNull();
-      expect(validateCopilotMealResponse('{"recipes":[{"id":"other","labels":[]}]}', new Set(["poha"]))).toBeNull();
-      expect(validateCopilotMealResponse("not json", new Set(["poha"]))).toBeNull();
-      expect(validateCopilotMealResponse("```json\n" + valid + "\n```", new Set(["poha"]))).toEqual({
-        recipes: [{ id: "poha", labels: [{ label: "breakfast", confidence: 0.92, evidence: "A customary morning dish." }] }]
-      });
-      expect(validateCopilotMealResponse("```\n" + valid + "\n```", new Set(["poha"]))).toEqual({
-        recipes: [{ id: "poha", labels: [{ label: "breakfast", confidence: 0.92, evidence: "A customary morning dish." }] }]
-      });
     });
 
     it("treats a generic entree with no explicit meal-time signal as both lunch and dinner", () => {
@@ -189,110 +189,257 @@ describe("catalog inference", () => {
     });
   });
 
-  describe("classifyMealTypes orchestration", () => {
+  describe("Jev client", () => {
+    const questions = { ...mealJevQuestions(), ...cuisineJevQuestions() };
+    const jevBody = (overrides: Record<string, unknown> = {}) => ({
+      model: DEFAULT_JEV_MODEL,
+      answers: {
+        ...Object.fromEntries(MEAL_TYPES.map((mealType) => [`meal_${mealType}`, { type: "noul", noul: mealType === "breakfast" ? 0.93 : 0.04 }])),
+        cuisine: { type: "choice", choice: "Indian", confidence: 0.91, probabilities: { Indian: 0.91, Global: 0.05, unclear: 0.04 } },
+        ...overrides
+      },
+      usage: { input_tokens: 120, output_tokens: 8 }
+    });
+
+    it("asks one noul question per meal type and one cuisine choice including unclear", () => {
+      expect(Object.keys(mealJevQuestions())).toEqual(MEAL_TYPES.map((mealType) => `meal_${mealType}`));
+      expect(Object.values(mealJevQuestions()).every((question) => question.type === "noul")).toBe(true);
+      const cuisine = cuisineJevQuestions().cuisine;
+      expect(cuisine.type).toBe("choice");
+      expect(Object.keys(cuisine.type === "choice" ? cuisine.criteria : {})).toEqual([...CUISINES, "unclear"]);
+      expect(Object.keys(buildJevQuestions({ needsMeal: false, needsCuisine: true }))).toEqual(["cuisine"]);
+      expect(Object.keys(buildJevQuestions({ needsMeal: true, needsCuisine: false }))).not.toContain("cuisine");
+    });
+
+    it("validates that every question is answered with the expected type", () => {
+      expect(validateJevAnswers(jevBody(), questions)).toMatchObject({ meal_breakfast: { type: "noul", noul: 0.93 } });
+      expect(validateJevAnswers(jevBody({ meal_lunch: undefined }), questions)).toBeNull();
+      expect(validateJevAnswers(jevBody({ meal_lunch: { type: "choice", choice: "x", confidence: 1 } }), questions)).toBeNull();
+      expect(validateJevAnswers(jevBody({ meal_lunch: { type: "noul", noul: 1.4 } }), questions)).toBeNull();
+      expect(validateJevAnswers(jevBody({ cuisine: { type: "choice", choice: "Klingon", confidence: 0.9 } }), questions)).toBeNull();
+      expect(validateJevAnswers({ answers: [] }, questions)).toBeNull();
+    });
+
+    it("maps Jev answers into meal and cuisine responses", () => {
+      const answers = validateJevAnswers(jevBody(), questions) as JevAnswers;
+      const meal = mealResponseFromJev(answers);
+      expect(meal?.labels).toHaveLength(MEAL_TYPES.length);
+      const implicit = inferMealClassification({ title: "Traditional Poha", description: "Flattened rice with peanuts." });
+      expect(applyAiMealResponse(implicit, meal)).toMatchObject({ labels: ["breakfast"], needsAi: false });
+      expect(cuisineResponseFromJev(answers)).toEqual({ cuisine: "Indian", confidence: 0.91 });
+
+      const unclear = validateJevAnswers(jevBody({ cuisine: { type: "choice", choice: "unclear", confidence: 0.95 } }), questions) as JevAnswers;
+      expect(cuisineResponseFromJev(unclear)).toEqual({ cuisine: null, confidence: 0.95 });
+      expect(applyAiCuisineResponse({ cuisine: null, confidence: 0.95 })).toBeNull();
+      expect(applyAiCuisineResponse({ cuisine: "Italian", confidence: 0.5 })).toBeNull();
+      expect(applyAiCuisineResponse({ cuisine: "Italian", confidence: 0.69 })).toBeNull();
+      expect(applyAiCuisineResponse({ cuisine: "Italian", confidence: 0.72 })).toBe("Italian");
+      expect(applyAiCuisineResponse({ cuisine: "Italian", confidence: 0.85 })).toBe("Italian");
+    });
+
+    it("posts the decision request to OpenRouter with the API key and retries transient failures", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce(new Response("rate limited", { status: 429 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify(jevBody()), { status: 200 }));
+      const answers = await decideWithJev(
+        { state: { title: "Poha" }, questions },
+        { apiKey: "or-key", fetch: fetchMock, retryDelayMs: 0 }
+      );
+      expect(answers?.meal_breakfast).toEqual({ type: "noul", noul: 0.93 });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe(JEV_ENDPOINT);
+      expect(init.headers).toMatchObject({ Authorization: "Bearer or-key", "Content-Type": "application/json" });
+      expect(JSON.parse(init.body)).toMatchObject({ model: DEFAULT_JEV_MODEL, state: { title: "Poha" } });
+    });
+
+    it("returns null without retrying on non-transient errors or invalid bodies", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      const unauthorized = vi.fn().mockResolvedValue(new Response("bad key", { status: 401 }));
+      expect(await decideWithJev({ state: {}, questions }, { apiKey: "k", fetch: unauthorized, retryDelayMs: 0 })).toBeNull();
+      expect(unauthorized).toHaveBeenCalledTimes(1);
+      const invalid = vi.fn().mockResolvedValue(new Response(JSON.stringify({ answers: {} }), { status: 200 }));
+      expect(await decideWithJev({ state: {}, questions }, { apiKey: "k", fetch: invalid, retryDelayMs: 0 })).toBeNull();
+      expect(invalid).toHaveBeenCalledTimes(1);
+    });
+
+    it("sends one combined request per recipe with only the needed questions", async () => {
+      const decide = vi.fn().mockImplementation(async ({ questions: asked }) =>
+        validateJevAnswers(jevBody(), asked)
+      );
+      const results = await classifyWithJev([
+        { id: "both", input: { title: "Poha", description: "" }, needsMeal: true, needsCuisine: true },
+        { id: "cuisine-only", input: { title: "Toast", description: "" }, needsMeal: false, needsCuisine: true },
+        { id: "nothing", input: { title: "x", description: "" }, needsMeal: false, needsCuisine: false }
+      ], { apiKey: "k", decide });
+      expect(decide).toHaveBeenCalledTimes(2);
+      expect(Object.keys(decide.mock.calls[1][0].questions)).toEqual(["cuisine"]);
+      expect(results.get("both")).toMatchObject({ meal: expect.any(Object), cuisine: { cuisine: "Indian" } });
+      expect(results.get("cuisine-only")).toEqual({ cuisine: { cuisine: "Indian", confidence: 0.91 } });
+      expect(results.has("nothing")).toBe(false);
+    });
+
+    it("caches validated cuisine responses and drops invalid entries", async () => {
+      const directory = await mkdtemp(path.join(os.tmpdir(), "cuisine-cache-"));
+      const cachePath = path.join(directory, "cache.json");
+      const key = cuisineClassificationCacheKey({ title: "Poha", description: "" }, DEFAULT_JEV_MODEL);
+      await writeAiCuisineCache(cachePath, {
+        entries: { [key]: { cuisine: "Indian", confidence: 0.9 }, bad: { cuisine: "Klingon", confidence: 0.9 } as never }
+      });
+      expect((await readAiCuisineCache(cachePath)).entries).toEqual({ [key]: { cuisine: "Indian", confidence: 0.9 } });
+      expect(cuisineClassificationCacheKey({ title: "Poha", description: "" }, "other-model")).not.toBe(key);
+      await rm(directory, { recursive: true });
+    });
+  });
+
+  describe("classifyRecipes orchestration", () => {
     const implicitVideo: VideoSource = {
       ...video,
-      videoId: "implicit-poha",
-      title: "Traditional Poha",
-      description: "Flattened rice with peanuts."
+      videoId: "implicit-toast",
+      title: "Sourdough Avocado Toast",
+      description: "Crusty bread topped with smashed avocado."
     };
+    const implicitInput = { title: implicitVideo.title, description: implicitVideo.description };
     const overrides = { include: [], exclude: [], corrections: {} };
-    const previousCopilotToken = process.env.COPILOT_GITHUB_TOKEN;
-    const previousClassifierRequired = process.env.MEAL_CLASSIFIER_REQUIRED;
+    const mealResponse = { labels: [{ label: "breakfast" as const, confidence: 0.92, evidence: "Jev noul probability 0.920" }] };
+    const cuisineResponse = { cuisine: "Indian" as const, confidence: 0.9 };
+    const previousKey = process.env.OPENROUTER_API_KEY;
+    const previousRequired = process.env.CLASSIFIER_REQUIRED;
+    const previousModel = process.env.JEV_MODEL;
+
+    function deps(overridesForDeps: Partial<ClassifyRecipesDeps> = {}): ClassifyRecipesDeps {
+      return {
+        readAiMealCache: vi.fn().mockResolvedValue({ entries: {} }),
+        writeAiMealCache: vi.fn().mockResolvedValue(undefined),
+        readAiCuisineCache: vi.fn().mockResolvedValue({ entries: {} }),
+        writeAiCuisineCache: vi.fn().mockResolvedValue(undefined),
+        classifyWithJev: vi.fn().mockResolvedValue(new Map()),
+        ...overridesForDeps
+      };
+    }
 
     afterEach(() => {
       vi.restoreAllMocks();
-      if (previousCopilotToken === undefined) delete process.env.COPILOT_GITHUB_TOKEN;
-      else process.env.COPILOT_GITHUB_TOKEN = previousCopilotToken;
-      if (previousClassifierRequired === undefined) delete process.env.MEAL_CLASSIFIER_REQUIRED;
-      else process.env.MEAL_CLASSIFIER_REQUIRED = previousClassifierRequired;
+      for (const [name, value] of [["OPENROUTER_API_KEY", previousKey], ["CLASSIFIER_REQUIRED", previousRequired], ["JEV_MODEL", previousModel]] as const) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
     });
 
-    it("fails when Copilot classification is required but its token is missing", async () => {
-      delete process.env.COPILOT_GITHUB_TOKEN;
-      process.env.MEAL_CLASSIFIER_REQUIRED = "true";
+    it("fails when Jev classification is required but the OpenRouter key is missing", async () => {
+      delete process.env.OPENROUTER_API_KEY;
+      process.env.CLASSIFIER_REQUIRED = "true";
 
-      await expect(classifyMealTypes([implicitVideo], overrides)).rejects.toThrow("COPILOT_GITHUB_TOKEN is required");
+      await expect(classifyRecipes([implicitVideo], overrides, deps())).rejects.toThrow("OPENROUTER_API_KEY is required");
     });
 
-    it("reuses a cache hit without calling the AI classifier", async () => {
-      process.env.COPILOT_GITHUB_TOKEN = "test-key";
-      const key = mealClassificationCacheKey({ title: implicitVideo.title, description: implicitVideo.description });
-      const readAiMealCache = vi.fn().mockResolvedValue({
-        entries: { [key]: { labels: [{ label: "breakfast", confidence: 0.9, evidence: "Customary morning dish." }] } }
+    it("keeps regex results without calling Jev when the key is missing and not required", async () => {
+      delete process.env.OPENROUTER_API_KEY;
+      delete process.env.CLASSIFIER_REQUIRED;
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      const testDeps = deps();
+
+      const { meals, cuisines } = await classifyRecipes([implicitVideo], overrides, testDeps);
+
+      expect(testDeps.classifyWithJev).not.toHaveBeenCalled();
+      expect(meals.get(implicitVideo.videoId)).toMatchObject({ labels: [], needsAi: true });
+      expect(cuisines.size).toBe(0);
+    });
+
+    it("does not send recipes the regex rules fully resolve", async () => {
+      process.env.OPENROUTER_API_KEY = "test-key";
+      vi.spyOn(console, "log").mockImplementation(() => undefined);
+      const testDeps = deps();
+
+      await classifyRecipes([{ ...video, title: "Breakfast Paneer Masala" }], overrides, testDeps);
+
+      expect(testDeps.classifyWithJev).not.toHaveBeenCalled();
+    });
+
+    it("reuses cache hits without calling Jev", async () => {
+      process.env.OPENROUTER_API_KEY = "test-key";
+      vi.spyOn(console, "log").mockImplementation(() => undefined);
+      const testDeps = deps({
+        readAiMealCache: vi.fn().mockResolvedValue({ entries: { [mealClassificationCacheKey(implicitInput, DEFAULT_JEV_MODEL)]: mealResponse } }),
+        readAiCuisineCache: vi.fn().mockResolvedValue({ entries: { [cuisineClassificationCacheKey(implicitInput, DEFAULT_JEV_MODEL)]: cuisineResponse } })
       });
-      const writeAiMealCache = vi.fn().mockResolvedValue(undefined);
-      const classifyMealsWithCopilot = vi.fn();
 
-      const classifications = await classifyMealTypes([implicitVideo], overrides, {
-        readAiMealCache,
-        writeAiMealCache,
-        classifyMealsWithCopilot
-      });
+      const { meals, cuisines } = await classifyRecipes([implicitVideo], overrides, testDeps);
 
-      expect(classifyMealsWithCopilot).not.toHaveBeenCalled();
-      expect(writeAiMealCache).not.toHaveBeenCalled();
-      expect(classifications.get(implicitVideo.videoId)).toMatchObject({ labels: ["breakfast"], needsAi: false });
+      expect(testDeps.classifyWithJev).not.toHaveBeenCalled();
+      expect(testDeps.writeAiMealCache).not.toHaveBeenCalled();
+      expect(testDeps.writeAiCuisineCache).not.toHaveBeenCalled();
+      expect(meals.get(implicitVideo.videoId)).toMatchObject({ labels: ["breakfast"], needsAi: false });
+      expect(cuisines.get(implicitVideo.videoId)).toBe("Indian");
     });
 
-    it("leaves the classification unresolved when the AI response is invalid", async () => {
-      process.env.COPILOT_GITHUB_TOKEN = "test-key";
-      const readAiMealCache = vi.fn().mockResolvedValue({ entries: {} });
-      const writeAiMealCache = vi.fn().mockResolvedValue(undefined);
-      const classifyMealsWithCopilot = vi.fn().mockResolvedValue(new Map());
-
-      const classifications = await classifyMealTypes([implicitVideo], overrides, {
-        readAiMealCache,
-        writeAiMealCache,
-        classifyMealsWithCopilot
-      });
-
-      expect(classifyMealsWithCopilot).toHaveBeenCalledTimes(1);
-      expect(writeAiMealCache).not.toHaveBeenCalled();
-      expect(classifications.get(implicitVideo.videoId)).toMatchObject({ labels: [], needsAi: true });
-    });
-
-    it("applies and caches a successful Copilot classification", async () => {
-      process.env.COPILOT_GITHUB_TOKEN = "test-key";
+    it("applies and caches a combined Jev classification", async () => {
+      process.env.OPENROUTER_API_KEY = "test-key";
       const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
-      const readAiMealCache = vi.fn().mockResolvedValue({ entries: {} });
-      const writeAiMealCache = vi.fn().mockResolvedValue(undefined);
-      const response = { labels: [{ label: "breakfast" as const, confidence: 0.92, evidence: "A customary morning dish." }] };
-      const classifyMealsWithCopilot = vi.fn().mockResolvedValue(new Map([[implicitVideo.videoId, response]]));
-
-      const classifications = await classifyMealTypes([implicitVideo], overrides, {
-        readAiMealCache,
-        writeAiMealCache,
-        classifyMealsWithCopilot
+      const testDeps = deps({
+        classifyWithJev: vi.fn().mockResolvedValue(new Map([[implicitVideo.videoId, { meal: mealResponse, cuisine: cuisineResponse }]]))
       });
 
-      expect(classifyMealsWithCopilot).toHaveBeenCalledWith([
-        { id: implicitVideo.videoId, input: { title: implicitVideo.title, description: implicitVideo.description } }
-      ], "test-key");
-      expect(writeAiMealCache).toHaveBeenCalledWith(expect.stringContaining("meal-type-ai.json"), {
-        entries: { [mealClassificationCacheKey({ title: implicitVideo.title, description: implicitVideo.description })]: response }
+      const { meals, cuisines } = await classifyRecipes([implicitVideo], overrides, testDeps);
+
+      expect(testDeps.classifyWithJev).toHaveBeenCalledWith(
+        [{ id: implicitVideo.videoId, input: implicitInput, needsMeal: true, needsCuisine: true }],
+        { apiKey: "test-key", model: DEFAULT_JEV_MODEL }
+      );
+      expect(testDeps.writeAiMealCache).toHaveBeenCalledWith(expect.stringContaining("meal-type-ai.json"), {
+        entries: { [mealClassificationCacheKey(implicitInput, DEFAULT_JEV_MODEL)]: mealResponse }
       });
-      expect(classifications.get(implicitVideo.videoId)).toMatchObject({ labels: ["breakfast"], needsAi: false });
-      expect(log).toHaveBeenCalledWith(expect.stringContaining(
-        "sentToCopilot=1, validCopilotResponses=1, resolvedByCopilot=1, unresolved=0"
-      ));
+      expect(testDeps.writeAiCuisineCache).toHaveBeenCalledWith(expect.stringContaining("cuisine-ai.json"), {
+        entries: { [cuisineClassificationCacheKey(implicitInput, DEFAULT_JEV_MODEL)]: cuisineResponse }
+      });
+      expect(meals.get(implicitVideo.videoId)).toMatchObject({ labels: ["breakfast"], needsAi: false });
+      expect(cuisines.get(implicitVideo.videoId)).toBe("Indian");
+      expect(log).toHaveBeenCalledWith(expect.stringContaining("jevRequests=1, validJevResponses=1"));
+      expect(applyOverrides([implicitVideo], overrides, meals, cuisines)[0]).toMatchObject({ mealTypes: ["breakfast"], cuisine: "Indian" });
     });
 
-    it("leaves the classification unresolved when the AI request throws", async () => {
-      process.env.COPILOT_GITHUB_TOKEN = "test-key";
-      const readAiMealCache = vi.fn().mockResolvedValue({ entries: {} });
-      const writeAiMealCache = vi.fn().mockResolvedValue(undefined);
-      const classifyMealsWithCopilot = vi.fn().mockRejectedValue(new Error("network error"));
-
-      const classifications = await classifyMealTypes([implicitVideo], overrides, {
-        readAiMealCache,
-        writeAiMealCache,
-        classifyMealsWithCopilot
+    it("asks only for cuisine when regex resolves the meal type, and leaves unclear cuisines null", async () => {
+      process.env.OPENROUTER_API_KEY = "test-key";
+      vi.spyOn(console, "log").mockImplementation(() => undefined);
+      const breakfastVideo = { ...implicitVideo, title: "Breakfast Avocado Toast" };
+      const testDeps = deps({
+        classifyWithJev: vi.fn().mockResolvedValue(new Map([[breakfastVideo.videoId, { cuisine: { cuisine: null, confidence: 0.9 } }]]))
       });
 
-      expect(classifyMealsWithCopilot).toHaveBeenCalledTimes(1);
-      expect(writeAiMealCache).not.toHaveBeenCalled();
-      expect(classifications.get(implicitVideo.videoId)).toMatchObject({ labels: [], needsAi: true });
+      const { cuisines } = await classifyRecipes([breakfastVideo], overrides, testDeps);
+
+      expect(testDeps.classifyWithJev).toHaveBeenCalledWith(
+        [expect.objectContaining({ needsMeal: false, needsCuisine: true })],
+        expect.anything()
+      );
+      expect(cuisines.size).toBe(0);
+      expect(applyOverrides([breakfastVideo], overrides, undefined, cuisines)[0].cuisine).toBeNull();
+    });
+
+    it("does not ask Jev about fields that corrections already set", async () => {
+      process.env.OPENROUTER_API_KEY = "test-key";
+      vi.spyOn(console, "log").mockImplementation(() => undefined);
+      const testDeps = deps();
+      const corrected = { ...overrides, corrections: { [implicitVideo.videoId]: { mealTypes: ["snack" as const], cuisine: "Indian" as const } } };
+
+      await classifyRecipes([implicitVideo], corrected, testDeps);
+
+      expect(testDeps.classifyWithJev).not.toHaveBeenCalled();
+    });
+
+    it("leaves classifications unresolved when Jev throws", async () => {
+      process.env.OPENROUTER_API_KEY = "test-key";
+      vi.spyOn(console, "log").mockImplementation(() => undefined);
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      const testDeps = deps({ classifyWithJev: vi.fn().mockRejectedValue(new Error("network error")) });
+
+      const { meals, cuisines } = await classifyRecipes([implicitVideo], overrides, testDeps);
+
+      expect(testDeps.writeAiMealCache).not.toHaveBeenCalled();
+      expect(testDeps.writeAiCuisineCache).not.toHaveBeenCalled();
+      expect(meals.get(implicitVideo.videoId)).toMatchObject({ labels: [], needsAi: true });
+      expect(cuisines.size).toBe(0);
     });
   });
 

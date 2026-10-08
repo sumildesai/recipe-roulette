@@ -175,7 +175,8 @@ export function normalizeVideo(
   mealClassification: MealClassification = inferMealClassification({
     title: correction.title ?? video.title,
     description: correction.description ?? video.description
-  })
+  }),
+  aiCuisine: Cuisine | null = null
 ): NormalizedRecipe {
   const text = `${correction.title ?? video.title} ${correction.description ?? video.description}`;
   const durations = inferRecipeDurations(text);
@@ -198,7 +199,7 @@ export function normalizeVideo(
     cookingTimeMinutes,
     durations,
     mealTypes: correction.mealTypes ?? mealClassification.labels,
-    cuisine: correction.cuisine ?? inferCuisine(text),
+    cuisine: correction.cuisine ?? inferCuisine(text) ?? aiCuisine,
     ingredients: correction.ingredients ?? inferIngredients(text),
     vegetarian: correction.vegetarian !== undefined ? correction.vegetarian : classifyVegetarian(text),
     vegan: correction.vegan ?? classifyVegan(text, video.channelId)
@@ -300,14 +301,20 @@ export function isCatalogCandidate(
 export function applyOverrides(
   videos: VideoSource[],
   overrides: CatalogOverrides,
-  mealClassifications = new Map<string, MealClassification>()
+  mealClassifications = new Map<string, MealClassification>(),
+  aiCuisines = new Map<string, Cuisine>()
 ): Recipe[] {
   const excluded = new Set(overrides.exclude);
   const included = new Set(overrides.include);
   return videos
     .filter((video) => isCatalogCandidate(video, overrides, excluded, included))
     .map((video) => ({
-      ...normalizeVideo(video, overrides.corrections[video.videoId], mealClassifications.get(video.videoId)),
+      ...normalizeVideo(
+        video,
+        overrides.corrections[video.videoId],
+        mealClassifications.get(video.videoId),
+        aiCuisines.get(video.videoId) ?? null
+      ),
       vegetarian: true as const
     }))
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id));

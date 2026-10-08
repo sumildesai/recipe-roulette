@@ -1,14 +1,13 @@
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { CopilotClient } from "@github/copilot-sdk";
 import { MEAL_TYPES, type MealType } from "../lib/types";
-import { ENTREE_RULE, MEAL_TYPE_RULES, type ClassificationRule } from "./classification-taxonomy";
+import { ENTREE_RULE, MEAL_TYPE_DESCRIPTIONS, MEAL_TYPE_RULES, type ClassificationRule } from "./classification-taxonomy";
+import type { JevAnswers, JevQuestions } from "./jev-client";
 
-export const AI_CLASSIFIER_VERSION = "meal-type-v3-copilot";
-export const AI_PROMPT_VERSION = "2026-08-21";
-export const AI_CONFIDENCE_THRESHOLD = 0.8;
+export const AI_CLASSIFIER_VERSION = "meal-type-v4-jev";
+export const AI_PROMPT_VERSION = "2026-10-07";
+export const AI_CONFIDENCE_THRESHOLD = 0.7;
 
 export interface MealClassificationEvidence {
   source: "title" | "structured_metadata" | "prose" | "ai";
@@ -41,17 +40,6 @@ export interface AiMealResponse {
 export interface AiMealCache {
   entries: Record<string, AiMealResponse>;
 }
-
-export interface AiMealRequest {
-  id: string;
-  input: MealClassificationInput;
-}
-
-interface CopilotMealResponse {
-  recipes: Array<AiMealResponse & { id: string }>;
-}
-
-const COPILOT_BATCH_SIZE = 20;
 
 // Covers both general praise phrasing ("perfect for dinner") and serving-suggestion
 // phrasing ("pairs well with a refreshing drink", "serve with a side of dessert").
@@ -132,10 +120,45 @@ export function applyAiMealResponse(deterministic: MealClassification, response:
     : deterministic;
 }
 
-export function mealClassificationCacheKey(input: MealClassificationInput): string {
+export function mealClassificationCacheKey(input: MealClassificationInput, model = ""): string {
   return createHash("sha256")
-    .update(JSON.stringify({ title: input.title, description: input.description, classifier: AI_CLASSIFIER_VERSION, prompt: AI_PROMPT_VERSION }))
+    .update(JSON.stringify({ title: input.title, description: input.description, classifier: AI_CLASSIFIER_VERSION, prompt: AI_PROMPT_VERSION, model }))
     .digest("hex");
+}
+
+export function mealQuestionName(mealType: MealType): string {
+  return `meal_${mealType}`;
+}
+
+/**
+ * One independent yes/no question per meal type, because a recipe can belong to
+ * several meal types (for example both lunch and dinner).
+ */
+export function mealJevQuestions(): JevQuestions {
+  return Object.fromEntries(MEAL_TYPES.map((mealType) => [mealQuestionName(mealType), {
+    type: "noul" as const,
+    instructions:
+      `Based only on this recipe's title and description, is the dish commonly served as ${mealType}? ` +
+      "Ignore promotional text, hashtags, and generic suggestions like 'perfect for any meal'.",
+    criteria: {
+      true: MEAL_TYPE_DESCRIPTIONS[mealType],
+      false: `The dish is not typically served as ${mealType}.`
+    }
+  }]));
+}
+
+/**
+ * Converts Jev answers into an AiMealResponse that keeps every meal type's
+ * probability, so the confidence threshold can change without re-querying.
+ */
+export function mealResponseFromJev(answers: JevAnswers): AiMealResponse | null {
+  const labels: AiMealLabel[] = [];
+  for (const mealType of MEAL_TYPES) {
+    const answer = answers[mealQuestionName(mealType)];
+    if (answer?.type !== "noul") return null;
+    labels.push({ label: mealType, confidence: answer.noul, evidence: `Jev noul probability ${answer.noul.toFixed(3)}` });
+  }
+  return validateAiMealResponse({ labels });
 }
 
 export async function readAiMealCache(cachePath: string): Promise<AiMealCache> {
@@ -159,94 +182,6 @@ export async function readAiMealCache(cachePath: string): Promise<AiMealCache> {
 export async function writeAiMealCache(cachePath: string, cache: AiMealCache): Promise<void> {
   await mkdir(path.dirname(cachePath), { recursive: true });
   await writeFile(cachePath, `${JSON.stringify(cache, null, 2)}\n`, "utf8");
-}
-
-export async function classifyMealsWithCopilot(requests: AiMealRequest[], gitHubToken: string): Promise<Map<string, AiMealResponse>> {
-  const baseDirectory = await mkdtemp(path.join(tmpdir(), "copilot-meal-classifier-"));
-  const client = new CopilotClient({
-    gitHubToken,
-    useLoggedInUser: false,
-    mode: "empty",
-    baseDirectory,
-    logLevel: "error"
-  });
-  const classifications = new Map<string, AiMealResponse>();
-  await client.start();
-  try {
-    for (let index = 0; index < requests.length; index += COPILOT_BATCH_SIZE) {
-      const batch = requests.slice(index, index + COPILOT_BATCH_SIZE);
-      const session = await client.createSession({
-        ...(process.env.MEAL_CLASSIFIER_MODEL ? { model: process.env.MEAL_CLASSIFIER_MODEL } : {}),
-        availableTools: [],
-        enableConfigDiscovery: false,
-        enableHostGitOperations: false,
-        enableSessionStore: false,
-        enableSkills: false,
-        infiniteSessions: { enabled: false },
-        skipEmbeddingRetrieval: true
-      });
-      try {
-        const response = await session.sendAndWait({ prompt: copilotMealPrompt(batch) }, 120_000);
-        const expectedIds = new Set(batch.map(({ id }) => id));
-        const parsed = validateCopilotMealResponse(response?.data.content, expectedIds);
-        if (parsed) {
-          parsed.recipes.forEach(({ id, labels }) => classifications.set(id, { labels }));
-        } else {
-          const raw = typeof response?.data.content === "string" ? response.data.content : String(response?.data.content);
-          console.warn(
-            `Copilot meal classification batch ${index / COPILOT_BATCH_SIZE + 1} returned invalid output ` +
-            `(expected ${expectedIds.size} recipes). Raw response (truncated to 500 chars): ${raw.slice(0, 500)}`
-          );
-        }
-      } catch (error) {
-        console.warn(`Copilot meal classification batch ${index / COPILOT_BATCH_SIZE + 1} failed: ${error instanceof Error ? error.message : error}`);
-      } finally {
-        await session.disconnect();
-      }
-    }
-  } finally {
-    await client.stop();
-    await rm(baseDirectory, { recursive: true, force: true });
-  }
-  return classifications;
-}
-
-export function validateCopilotMealResponse(value: unknown, expectedIds: Set<string>): CopilotMealResponse | null {
-  if (typeof value !== "string") return null;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(stripCodeFence(value));
-  } catch {
-    return null;
-  }
-  if (!isRecord(parsed) || !Array.isArray(parsed.recipes) || parsed.recipes.length !== expectedIds.size) return null;
-  const recipes: CopilotMealResponse["recipes"] = [];
-  const seen = new Set<string>();
-  for (const item of parsed.recipes) {
-    if (!isRecord(item) || typeof item.id !== "string" || !expectedIds.has(item.id) || seen.has(item.id)) return null;
-    const response = validateAiMealResponse({ labels: item.labels });
-    if (!response) return null;
-    seen.add(item.id);
-    recipes.push({ id: item.id, ...response });
-  }
-  return seen.size === expectedIds.size ? { recipes } : null;
-}
-
-function stripCodeFence(value: string): string {
-  const trimmed = value.trim();
-  const match = /^```(?:json)?\s*\n([\s\S]*?)\n?```$/i.exec(trimmed);
-  return match ? match[1].trim() : trimmed;
-}
-
-function copilotMealPrompt(requests: AiMealRequest[]): string {
-  return [
-    `Classify each recipe using only these labels: ${MEAL_TYPES.join(", ")}.`,
-    "Require independent recipe-specific evidence for every label. Ignore promotional lists, hashtags, and boilerplate.",
-    "Use an empty labels array when uncertain. Return only valid JSON with this shape, with no markdown code fences or other surrounding text:",
-    '{"recipes":[{"id":"the supplied id","labels":[{"label":"breakfast","confidence":0.9,"evidence":"brief evidence"}]}]}',
-    "Include every supplied id exactly once and do not add any other keys.",
-    JSON.stringify(requests.map(({ id, input }) => ({ id, ...input })))
-  ].join("\n");
 }
 
 function structuredEvidence(description: string): MealClassificationEvidence[] {
