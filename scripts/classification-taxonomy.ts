@@ -196,6 +196,29 @@ export const CUISINE_RULES = [
   }
 ] as const satisfies readonly ClassificationRule<Cuisine>[];
 
+// Descriptions used as criteria for the Jev AI fallback. Keyed by the
+// supported taxonomy values so adding a meal type or cuisine requires a description.
+export const MEAL_TYPE_DESCRIPTIONS = {
+  breakfast: "Typically eaten in the morning or at brunch, such as poha, upma, parathas, pancakes, or porridge.",
+  lunch: "A main midday meal, such as curries, dals, rice dishes, sandwiches, salads, or tiffin dishes.",
+  dinner: "A main evening meal, such as curries, dals, rice dishes, pasta, or other substantial entrees.",
+  snack: "A light bite, appetizer, starter, chaat, or tea-time item rather than a full meal.",
+  drink: "A beverage that is drunk, such as tea, coffee, lassi, juices, smoothies, mocktails, or coolers.",
+  dessert: "A sweet dish served after a meal or as a treat, such as cakes, cookies, kheer, halwa, or mithai."
+} as const satisfies Record<MealType, string>;
+
+export const CUISINE_DESCRIPTIONS = {
+  Indian: "Dishes from any Indian regional tradition, such as curries, dals, biryanis, dosas, parathas, or chaat.",
+  "Indo-Chinese": "Indian-style Chinese dishes, such as manchurian, hakka noodles, schezwan fried rice, or chilli paneer.",
+  Italian: "Italian dishes, such as pasta, pizza, risotto, lasagna, or focaccia.",
+  "Middle Eastern": "Middle Eastern dishes, such as falafel, hummus, shawarma, tabbouleh, or za'atar flatbreads.",
+  Mexican: "Mexican dishes, such as tacos, burritos, quesadillas, enchiladas, or salsas.",
+  Global: "A clearly identifiable cuisine not listed above, such as Thai, Japanese, Korean, French, Greek, or American."
+} as const satisfies Record<Cuisine, string>;
+
+export const CUISINE_UNCLEAR_DESCRIPTION =
+  "The recipe does not clearly belong to one cuisine, for example generic baking, basic techniques, or fusion without a dominant tradition.";
+
 export const CUISINE_POLICY = {
   unclassified: "Return null when no cuisine aliases are detected.",
   global: "Use the Global cuisine for explicit non-core cuisine aliases that do not map to a specific supported cuisine."
