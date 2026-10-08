@@ -14,6 +14,8 @@ export const CUISINE_UNCLEAR = "unclear";
 export interface AiCuisineResponse {
   cuisine: Cuisine | null;
   confidence: number;
+  /** Jev's probability for every option, including "unclear". */
+  probabilities?: Record<string, number>;
 }
 
 export interface AiCuisineCache {
@@ -37,16 +39,29 @@ export function cuisineResponseFromJev(answers: JevAnswers): AiCuisineResponse |
   if (answer?.type !== "choice") return null;
   return validateAiCuisineResponse({
     cuisine: answer.choice === CUISINE_UNCLEAR ? null : answer.choice,
-    confidence: answer.confidence
+    confidence: answer.confidence,
+    probabilities: answer.probabilities
   });
 }
 
 export function validateAiCuisineResponse(value: unknown): AiCuisineResponse | null {
   if (typeof value !== "object" || value === null) return null;
-  const { cuisine, confidence } = value as Record<string, unknown>;
+  const { cuisine, confidence, probabilities } = value as Record<string, unknown>;
   if (cuisine !== null && !CUISINES.some((option) => option === cuisine)) return null;
-  if (typeof confidence !== "number" || !Number.isFinite(confidence) || confidence < 0 || confidence > 1) return null;
-  return { cuisine: cuisine as Cuisine | null, confidence };
+  if (!isProbability(confidence)) return null;
+  const validProbabilities = typeof probabilities === "object" && probabilities !== null && !Array.isArray(probabilities)
+    ? Object.fromEntries(Object.entries(probabilities).filter(([option, probability]) =>
+      (option === CUISINE_UNCLEAR || CUISINES.some((known) => known === option)) && isProbability(probability)))
+    : {};
+  return {
+    cuisine: cuisine as Cuisine | null,
+    confidence,
+    ...(Object.keys(validProbabilities).length ? { probabilities: validProbabilities } : {})
+  };
+}
+
+function isProbability(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 }
 
 /**
