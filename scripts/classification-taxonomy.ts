@@ -209,7 +209,7 @@ export const MEAL_TYPE_DESCRIPTIONS = {
 
 export const CUISINE_DESCRIPTIONS = {
   Indian: "Dishes from any Indian regional tradition, such as curries, dals, biryanis, dosas, parathas, or chaat.",
-  "Indo-Chinese": "Indian-style Chinese dishes, such as manchurian, hakka noodles, schezwan fried rice, or chilli paneer.",
+  "Indo-Chinese": "Indian-style Chinese and Himalayan street food, such as manchurian, hakka noodles, schezwan fried rice, chilli paneer, momos, or dumplings.",
   Italian: "Italian dishes, such as pasta, pizza, risotto, lasagna, or focaccia.",
   "Middle Eastern": "Middle Eastern dishes, such as falafel, hummus, shawarma, tabbouleh, or za'atar flatbreads.",
   Mexican: "Mexican dishes, such as tacos, burritos, quesadillas, enchiladas, or salsas.",

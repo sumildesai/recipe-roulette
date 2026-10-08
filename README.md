@@ -37,14 +37,14 @@ The key is read only by `scripts/generate-catalog.ts`. It is never referenced by
 
 The generator fetches each channel's uploads, normalizes text and durations, excludes short/non-recipe videos, infers meal type, cuisine, and stated cooking time, then merges in the NYT Cooking title/type metadata from `data/nytimes-recipes.json` before writing deterministic JSON to `public/recipes.json`. NYT entries intentionally store only public metadata (title, link, meal type, and cuisine), not paywalled recipe instructions. Classification taxonomy now lives in `scripts/classification-taxonomy.ts`, where meal/cuisine aliases are type-checked against supported `MealType` and `Cuisine` values. Cuisine policy is explicit: recognized non-core cuisine aliases map to `Global`, while recipes with no cuisine signal remain unclassified (`null`). Vegetarian classification excludes recipes with explicit meat terms; recipes without those signals are treated as vegetarian (`true`). Vegan metadata is assigned to Rainbow Plant Life recipes and recipes explicitly labeled vegan; the vegan filter excludes recipes whose vegan status is not confirmed. Unknown cooking times stay available when the UI has no time cap and are excluded when a cap is active.
 
-### AI classification fallback (Jev)
+### AI classification (Jev)
 
-Regex rules run first on every recipe. Only the cases they cannot settle go to [Jev](https://openrouter.ai/) (`typesafe/jev-1.13`) through OpenRouter's `POST /api/alpha/decisions` endpoint:
+Every recipe's meal types and cuisine are classified by [Jev](https://openrouter.ai/) (`typesafe/jev-1.13`) through OpenRouter's `POST /api/alpha/decisions` endpoint. The regex rules are the fallback when Jev fails or isn't confident:
 
-- **Meal type**: recipes whose title, structured metadata, and prose conflict or give no signal. Jev answers one yes/no (`noul`) question per meal type, since a recipe can have several meal types; labels with probability at least `0.7` are kept (Jev's yes/no scores for correct labels typically land around 0.7 to 0.9).
-- **Cuisine**: recipes with no cuisine alias. Jev answers one `choice` question over the supported cuisines plus `unclear`. A confident pick (confidence at least `0.7`) is used; `unclear` or low-confidence picks keep the cuisine `null`.
+- **Meal type**: Jev answers one yes/no (`noul`) question per meal type, since a recipe can have several meal types. Labels with probability at least `0.7` are kept (Jev's yes/no scores for correct labels typically land around 0.7 to 0.9). If none reach `0.7`, the regex result is used.
+- **Cuisine**: Jev answers one `choice` question over the supported cuisines plus `unclear`. A pick with confidence at least `0.7` is used, and a confident `unclear` keeps the cuisine `null`. Below `0.7`, the regex result is used.
 
-A recipe that needs both gets a single request containing both sets of questions. Question criteria come from `MEAL_TYPE_DESCRIPTIONS` and `CUISINE_DESCRIPTIONS` in `scripts/classification-taxonomy.ts`. Corrections in `data/catalog-overrides.json` always take priority and are never sent to Jev. Validated responses are cached by content hash, classifier version, and model in `.catalog-cache/meal-type-ai.json` and `.catalog-cache/cuisine-ai.json`, so only new or edited videos are sent on later runs.
+Each recipe gets a single request containing both sets of questions. Question criteria come from `MEAL_TYPE_DESCRIPTIONS` and `CUISINE_DESCRIPTIONS` in `scripts/classification-taxonomy.ts`. Corrections in `data/catalog-overrides.json` always take priority; Jev is only asked about fields a correction leaves open. Validated responses are cached by content hash, classifier version, and model in `.catalog-cache/meal-type-ai.json` and `.catalog-cache/cuisine-ai.json`, so only new or edited videos are sent on later runs.
 
 ```bash
 YOUTUBE_API_KEY=your-key OPENROUTER_API_KEY=your-openrouter-key npm run catalog:generate
