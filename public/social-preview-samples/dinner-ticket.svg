@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">What's for dinner? Recipe Roulette.</title>
+  <desc id="description">A cream dinner ticket on a deep green background. What's for dinner? Let the wheel decide.</desc>
+  <rect width="1200" height="630" fill="#26734d"/>
+  <path d="M96 80h1008v470H96Z" fill="#fffaf0"/>
+  <g fill="#26734d">
+    <circle cx="96" cy="80" r="23"/>
+    <circle cx="1104" cy="80" r="23"/>
+    <circle cx="96" cy="550" r="23"/>
+    <circle cx="1104" cy="550" r="23"/>
+    <circle cx="832" cy="80" r="19"/>
+    <circle cx="832" cy="550" r="19"/>
+  </g>
+  <path d="M832 109v412" stroke="#cdbda8" stroke-width="3" stroke-dasharray="7 10"/>
+  <text x="148" y="157" fill="#26734d" font-family="Arial, sans-serif" font-size="30" font-weight="700">Recipe Roulette</text>
+  <text x="142" y="284" fill="#251a16" font-family="Georgia, serif" font-size="91" font-weight="700" letter-spacing="-3">What's for</text>
+  <text x="142" y="379" fill="#251a16" font-family="Georgia, serif" font-size="91" font-weight="700" letter-spacing="-3">dinner?</text>
+  <text x="148" y="474" fill="#251a16" font-family="Arial, sans-serif" font-size="32">Let the wheel decide.</text>
+  <g transform="translate(864 190) scale(3.2)">
+    <circle cx="32" cy="34" r="24" fill="#e95120"/>
+    <path d="M32 10a24 24 0 0 1 24 24H32ZM32 58A24 24 0 0 1 8 34h24Z" fill="#26734d"/>
+    <circle cx="32" cy="34" r="12" fill="#fffaf0"/>
+    <circle cx="32" cy="34" r="5" fill="#251a16"/>
+    <path d="m25 3 7 15 7-15Z" fill="#251a16"/>
+  </g>
+  <text x="967" y="466" fill="#251a16" font-family="Arial, sans-serif" font-size="34" font-weight="700" text-anchor="middle" letter-spacing="3">SPIN</text>
+</svg>

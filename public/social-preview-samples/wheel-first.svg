@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">Recipe Roulette</title>
+  <desc id="description">Recipe Roulette in bold lettering beside an orange and green roulette wheel. Spin the wheel for your next recipe.</desc>
+  <rect width="1200" height="630" fill="#fffaf0"/>
+  <path d="M748 0h452v630H748Z" fill="#e95120"/>
+  <text x="68" y="249" fill="#251a16" font-family="Georgia, serif" font-size="128" font-weight="700" letter-spacing="-5">Recipe</text>
+  <text x="64" y="374" fill="#251a16" font-family="Georgia, serif" font-size="128" font-weight="700" letter-spacing="-5">Roulette</text>
+  <path d="M72 432h92" stroke="#26734d" stroke-width="8"/>
+  <text x="72" y="490" fill="#251a16" font-family="Arial, sans-serif" font-size="30">Spin the wheel for</text>
+  <text x="72" y="532" fill="#251a16" font-family="Arial, sans-serif" font-size="30">your next recipe.</text>
+  <g transform="translate(786 127) scale(6)">
+    <rect width="64" height="64" rx="16" fill="#fffaf0"/>
+    <circle cx="32" cy="34" r="24" fill="#e95120"/>
+    <path d="M32 10a24 24 0 0 1 24 24H32ZM32 58A24 24 0 0 1 8 34h24Z" fill="#26734d"/>
+    <circle cx="32" cy="34" r="12" fill="#fffaf0"/>
+    <circle cx="32" cy="34" r="5" fill="#251a16"/>
+    <path d="m25 3 7 15 7-15Z" fill="#251a16"/>
+  </g>
+</svg>

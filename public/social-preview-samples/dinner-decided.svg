@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">Dinner, decided. Recipe Roulette.</title>
+  <desc id="description">A bold orange poster with the words Dinner, decided and an oversized dinner plate styled as a roulette wheel.</desc>
+  <rect width="1200" height="630" fill="#e95120"/>
+  <text x="72" y="95" fill="#251a16" font-family="Arial, sans-serif" font-size="34" font-weight="700">Recipe Roulette</text>
+  <text x="65" y="282" fill="#fffaf0" font-family="Georgia, serif" font-size="132" font-weight="700" letter-spacing="-5">Dinner,</text>
+  <text x="65" y="410" fill="#fffaf0" font-family="Georgia, serif" font-size="132" font-weight="700" letter-spacing="-5">decided.</text>
+  <text x="72" y="551" fill="#251a16" font-family="Arial, sans-serif" font-size="30">Spin the wheel for your next recipe.</text>
+  <circle cx="1052" cy="314" r="266" fill="#fffaf0"/>
+  <circle cx="1052" cy="314" r="221" fill="none" stroke="#f6ead4" stroke-width="4"/>
+  <g transform="translate(862 112) scale(6)">
+    <circle cx="32" cy="34" r="24" fill="#e95120"/>
+    <path d="M32 10a24 24 0 0 1 24 24H32ZM32 58A24 24 0 0 1 8 34h24Z" fill="#26734d"/>
+    <circle cx="32" cy="34" r="12" fill="#fffaf0"/>
+    <circle cx="32" cy="34" r="5" fill="#251a16"/>
+    <path d="m25 3 7 15 7-15Z" fill="#251a16"/>
+  </g>
+</svg>
