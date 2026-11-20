@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How I Stopped Regexing and Started Using a Typed Decision Model</title>
+<style>
+  :root {
+    --bg: #14110f;
+    --panel: #1f1a17;
+    --panel-2: #2a231f;
+    --ink: #f6efe8;
+    --muted: #b9aa9c;
+    --accent: #ff8a3d;
+    --accent-2: #ffd166;
+    --good: #7bd389;
+    --bad: #ff6b6b;
+    --blue: #7cc4ff;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink);
+    font: 400 26px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+  .deck { position: absolute; left: 50%; top: 50%; width: 1600px; height: 900px; overflow: hidden;
+    transform: translate(-50%, -50%) scale(var(--scale, 1)); }
+  .slide { position: absolute; inset: 0; padding: 56px 96px 72px; display: none; flex-direction: column; justify-content: center; gap: 0.6em; }
+  .slide.active { display: flex; animation: in .35s ease; }
+  @keyframes in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  h1 { font-size: 2.6em; line-height: 1.1; margin: 0; letter-spacing: -0.02em; }
+  h2 { font-size: 1.7em; margin: 0 0 .3em; letter-spacing: -0.01em; }
+  h3 { font-size: 1em; margin: 0 0 .3em; color: var(--accent-2); text-transform: uppercase; letter-spacing: .08em; }
+  p { margin: .2em 0; }
+  ul { margin: .2em 0; padding-left: 1.1em; }
+  li { margin: .25em 0; }
+  li::marker { color: var(--accent); }
+  a { color: inherit; }
+  .kicker { color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .12em; font-size: .7em; }
+  .muted { color: var(--muted); }
+  .small { font-size: .75em; }
+  .big { font-size: 1.25em; }
+  .accent { color: var(--accent); }
+  .gold { color: var(--accent-2); }
+  .good { color: var(--good); }
+  .bad { color: var(--bad); }
+  code, pre { font-family: var(--mono); }
+  code { background: var(--panel-2); padding: .05em .35em; border-radius: 6px; font-size: .85em; }
+  pre { background: var(--panel); border: 1px solid #3a302a; border-radius: 12px; padding: .8em 1em; margin: 0;
+    font-size: .58em; line-height: 1.5; overflow: auto; white-space: pre; }
+  pre .k { color: var(--blue); } pre .s { color: var(--good); } pre .n { color: var(--accent-2); } pre .c { color: #8c7d70; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.6em; align-items: start; }
+  .cols.wide-left { grid-template-columns: 1.3fr 1fr; }
+  .card { background: var(--panel); border: 1px solid #3a302a; border-radius: 14px; padding: .8em 1em; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: .8em; }
+  .stat { background: var(--panel); border-radius: 14px; padding: .7em .9em; border: 1px solid #3a302a; }
+  .stat b { display: block; font-size: 1.8em; color: var(--accent-2); line-height: 1.1; }
+  .stat span { color: var(--muted); font-size: .7em; }
+  .flow { display: flex; align-items: stretch; gap: .5em; flex-wrap: wrap; }
+  .flow .box { background: var(--panel); border: 1px solid #3a302a; border-radius: 12px; padding: .5em .8em; font-size: .72em; flex: 1; min-width: 8em; }
+  .flow .box b { display: block; color: var(--accent-2); }
+  .flow .arrow { align-self: center; color: var(--accent); font-size: 1.2em; }
+  .timeline { list-style: none; padding: 0; border-left: 3px solid var(--accent); margin-left: .3em; }
+  .timeline li { padding-left: 1em; position: relative; margin: .5em 0; }
+  .timeline li::before { content: ""; position: absolute; left: -.5em; top: .5em; width: .7em; height: .7em; border-radius: 50%; background: var(--accent); }
+  table { border-collapse: collapse; width: 100%; font-size: .72em; }
+  th, td { text-align: left; padding: .45em .6em; border-bottom: 1px solid #3a302a; vertical-align: top; }
+  th { color: var(--accent-2); font-weight: 600; }
+  .bar { display: grid; grid-template-columns: 7em 1fr 3.5em; align-items: center; gap: .5em; font-size: .7em; margin: .3em 0; }
+  .bar i { display: block; height: .9em; border-radius: 4px; background: var(--accent); }
+  .bar i.c { background: var(--blue); }
+  .shot { width: 100%; border-radius: 14px; border: 1px solid #3a302a; box-shadow: 0 10px 40px #0008; }
+  .quote { font-size: 1.4em; font-style: italic; color: var(--accent-2); }
+  .quote::before { content: "“"; color: var(--accent); }
+  .quote::after { content: "”"; color: var(--accent); }
+  .tag { display: inline-block; background: var(--panel-2); border-radius: 999px; padding: .1em .7em; margin: .15em .2em .15em 0; font-size: .7em; }
+  .wheel { font-size: 4em; display: inline-block; animation: spin 6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .chrome { position: fixed; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; align-items: center;
+    padding: .6em 1.2em; font-size: .6em; color: var(--muted); pointer-events: none; }
+  .chrome button { pointer-events: auto; background: var(--panel-2); color: var(--ink); border: 0; border-radius: 8px; padding: .4em .9em; font: inherit; cursor: pointer; }
+  .progress { position: fixed; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    transform-origin: left; transform: scaleX(0); transition: transform .3s ease; }
+  @media print {
+    @page { size: 1600px 900px; margin: 0; }
+    html, body { overflow: visible; height: auto; }
+    .chrome, .progress { display: none; }
+    .deck { position: static; transform: none; height: auto; overflow: visible; }
+    .slide { position: relative; display: flex !important; height: 900px; page-break-after: always; animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<main class="deck" id="deck">
+
+  <!-- 1. Title -->
+  <section class="slide">
+    <div class="kicker">CSA hack session</div>
+    <h1>How I Stopped Regexing and Started Using a <span class="accent">Typed Decision Model</span></h1>
+    <p class="muted big">A side project, a classification problem, and a detour through "just use an LLM"</p>
+    <p class="muted small">Sumil Desai · Recipe Roulette</p>
+  </section>
+
+  <!-- 2. The itch -->
+  <section class="slide">
+    <div class="cols wide-left">
+      <div>
+        <div class="kicker">The itch</div>
+        <h2>"What should we cook tonight?"</h2>
+        <p>Every night, same question. Hundreds of saved YouTube recipes, zero decisions.</p>
+        <p class="big" style="margin-top:.6em">So I built a wheel. <span class="wheel">🎡</span></p>
+        <ul class="small">
+          <li>Pick a few filters</li>
+          <li>Spin</li>
+          <li>Cook whatever it lands on (no take-backs)</li>
+        </ul>
+      </div>
+      <img class="shot" src="../screenshots/wheel-desktop.png" alt="Recipe Roulette wheel on desktop">
+    </div>
+  </section>
+
+  <!-- 3. What the app does -->
+  <section class="slide">
+    <div class="kicker">Overview</div>
+    <h2>Recipe Roulette</h2>
+    <div class="stats">
+      <div class="stat"><b>2,082</b><span>recipes in the catalog</span></div>
+      <div class="stat"><b>3</b><span>YouTube channels: Your Food Lab, Ranveer Brar, Rainbow Plant Life</span></div>
+      <div class="stat"><b>+ NYT</b><span>metadata-only NYT Cooking entries (title, link, type)</span></div>
+      <div class="stat"><b>$0</b><span>hosting: static export on GitHub Pages</span></div>
+    </div>
+    <div class="cols" style="margin-top:.8em">
+      <div class="card">
+        <h3>Filters</h3>
+        <span class="tag">Meal type</span><span class="tag">Cuisine</span><span class="tag">Max cooking time</span>
+        <span class="tag">Vegetarian</span><span class="tag">Vegan</span><span class="tag">No egg</span>
+        <span class="tag">Source</span><span class="tag">Text search</span>
+      </div>
+      <div class="card">
+        <h3>Then</h3>
+        <p class="small">An unbiased random pick from whatever is left, plus a link straight to the video.</p>
+      </div>
+    </div>
+    <p class="muted small" style="margin-top:.6em">Catch: <b class="accent">Meal type</b> and <b class="accent">Cuisine</b> filters only work if every recipe is labeled. YouTube doesn't give you those labels.</p>
+  </section>
+
+  <!-- 4. Architecture -->
+  <section class="slide">
+    <div class="kicker">How it's built</div>
+    <h2>All the work happens at build time</h2>
+    <div class="flow">
+      <div class="box"><b>GitHub Actions</b>Mon &amp; Fri cron, or manual refresh</div>
+      <div class="arrow">→</div>
+      <div class="box"><b>YouTube Data API</b>Uploads from 3 hard-coded channel IDs</div>
+      <div class="arrow">→</div>
+      <div class="box"><b>generate-catalog.ts</b>Normalize, drop non-recipes, parse cook time, <span class="gold">classify</span></div>
+      <div class="arrow">→</div>
+      <div class="box"><b>recipes.json</b>Deterministic, cached between runs</div>
+      <div class="arrow">→</div>
+      <div class="box"><b>Next.js static export</b>Deployed to GitHub Pages</div>
+    </div>
+    <div class="cols" style="margin-top:1em">
+      <pre><span class="c"># repo map</span>
+app/                 <span class="c">Next.js pages (/ and /stats)</span>
+components/          <span class="c">wheel UI, stats page</span>
+lib/roulette.ts      <span class="c">filtering + unbiased random pick</span>
+scripts/
+  generate-catalog.ts        <span class="c">the pipeline</span>
+  classification-taxonomy.ts <span class="c">labels, rules, criteria</span>
+  jev-client.ts              <span class="c">the API call</span>
+  ai-classification.ts       <span class="c">one request per recipe</span>
+data/catalog-overrides.json  <span class="c">human corrections win</span></pre>
+      <div class="small">
+        <ul>
+          <li>The browser never calls an API. It just loads a JSON file.</li>
+          <li>API keys live only in Actions secrets and the generator script.</li>
+          <li>Built with Copilot coding agent and the Copilot app.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. The problem -->
+  <section class="slide">
+    <div class="kicker">The classification problem</div>
+    <h2>Titles are chaos</h2>
+    <div class="card"><code style="font-size:.8em">ZERO-OIL Pressure Cooker Rajma Chawal with HIDDEN VEGETABLES | @yourfoodlab X @fit.khurana</code></div>
+    <div class="card"><code style="font-size:.8em">The Softest GHEE MYSORE PAK Recipe with TIPS | मुँह में घुलने वाला घी मिसरे पाक | Chef Sanjyot Keer</code></div>
+    <ul style="margin-top:.6em">
+      <li>Is that lunch? Dinner? Both? Is Mysore Pak a dessert or a snack? (Ask three aunties, get four answers.)</li>
+      <li>Descriptions are full of hashtags, sponsor plugs, and "perfect for any meal!"</li>
+      <li>One recipe can legitimately be <b>several</b> meal types, but only <b>one</b> cuisine.</li>
+    </ul>
+  </section>
+
+  <!-- 6. Act 1: regex -->
+  <section class="slide">
+    <div class="kicker">Act 1</div>
+    <h2>Regex all the way down</h2>
+    <div class="cols">
+      <div>
+        <p>Keyword rules per meal type and cuisine, then rules to fix the rules:</p>
+        <ul class="timeline small">
+          <li>Improve meal type inference</li>
+          <li>Refine meal inference classifier</li>
+          <li>Filter hashtags and boilerplate</li>
+          <li>Tag ambiguous entrees as both lunch and dinner</li>
+          <li>Fix drink and soup meal classification</li>
+          <li>Expand entree signals</li>
+          <li>Fix savory entrees classified as drinks</li>
+          <li class="accent">Gate drink classification behind a feature flag 🏳️</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Favorite bug</h3>
+        <p class="small">A <b>Palak Paneer Casserole</b> was tagged <code>mealTypes: ["drink"]</code>.</p>
+        <p class="small muted">Why? Its description said "pair it with a refreshing drink."</p>
+        <p class="small" style="margin-top:.6em">Every fix made a new edge case. The <code>Drink</code> filter is <i>still</i> behind a flag.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Act 2: Copilot SDK -->
+  <section class="slide">
+    <div class="kicker">Act 2</div>
+    <h2>"I'll just use an LLM." The Copilot SDK attempt</h2>
+    <div class="cols wide-left">
+      <pre><span class="k">const</span> client = <span class="k">new</span> CopilotClient({ gitHubToken, mode: <span class="s">"empty"</span> });
+<span class="k">await</span> client.start();
+<span class="k">for</span> (<span class="c">/* batches of 20 recipes */</span>) {
+  <span class="k">const</span> session = <span class="k">await</span> client.createSession({
+    availableTools: [],
+    enableConfigDiscovery: <span class="n">false</span>,
+    enableHostGitOperations: <span class="n">false</span>,
+    enableSessionStore: <span class="n">false</span>,
+    enableSkills: <span class="n">false</span>,
+    infiniteSessions: { enabled: <span class="n">false</span> },
+    skipEmbeddingRetrieval: <span class="n">true</span>
+  });
+  <span class="k">const</span> res = <span class="k">await</span> session.sendAndWait({ prompt }, <span class="n">120_000</span>);
+  JSON.parse(res.data.content) <span class="c">// 🤞</span>
+}</pre>
+      <div class="small">
+        <p>The prompt:</p>
+        <p class="muted">"Classify each recipe using only these labels… Use an empty labels array when uncertain. <b>Return only valid JSON</b> with this shape… Include every supplied id exactly once…"</p>
+        <p style="margin-top:.6em">Notice how much of the code is <b class="accent">turning things off</b>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. What went wrong -->
+  <section class="slide">
+    <div class="kicker">Act 2, continued</div>
+    <h2>The fix-it PR parade</h2>
+    <ul class="timeline">
+      <li><b>#35</b> SDK now requires a <code>baseDirectory</code> for empty mode. Make a temp dir per run.</li>
+      <li><b>#36</b> Most batches rejected. Add diagnostic logging to see why.</li>
+      <li><b>#37</b> The model wrapped its JSON in <code>```json</code> fences. <span class="bad"><b>404 of 414</b> recipes unresolved.</span> Strip fences, beg harder in the prompt.</li>
+      <li><b>#38</b> Still misclassifying savory entrees as drinks, snacks, and desserts.</li>
+    </ul>
+    <p class="muted" style="margin-top:.6em">It worked, eventually. But I was maintaining a prompt, a JSON parser, a validator, a batching strategy, and an agent runtime… to pick from six labels.</p>
+  </section>
+
+  <!-- 9. Overkill -->
+  <section class="slide">
+    <div class="kicker">The realization</div>
+    <h2>A general-purpose LLM was overkill</h2>
+    <table>
+      <tr><th>What I needed</th><th>What a chat/agent LLM gives you</th></tr>
+      <tr><td>Pick from a <b>fixed set</b> of labels</td><td>Free text that you hope is JSON</td></tr>
+      <tr><td>A <b>probability</b> I can threshold</td><td>A self-reported <code>"confidence": 0.9</code> it made up</td></tr>
+      <tr><td>Same output <b>shape</b> every time</td><td>Code fences, extra keys, missing ids</td></tr>
+      <tr><td>Cheap and fast for ~2,000 items</td><td>Batching tradeoffs, 2 minute timeouts</td></tr>
+      <tr><td>A function call</td><td>Sessions, tools, skills, config discovery (all disabled)</td></tr>
+    </table>
+    <p class="quote" style="margin-top:.8em">I needed a classifier. I was renting a coding agent.</p>
+  </section>
+
+  <!-- 10. Enter Jev -->
+  <section class="slide">
+    <div class="kicker">Act 3</div>
+    <h2>Enter <span class="accent">Jev</span>: a typed decision model</h2>
+    <div class="cols">
+      <div>
+        <ul>
+          <li>From <b>TypeSafe AI</b>. They call it a <b>System One</b> model: fast, structured decisions for software.</li>
+          <li>Reads natural language (and images) like an LLM.</li>
+          <li><b>Does not generate text.</b> Returns typed answers with probabilities.</li>
+          <li>Trained for <b>calibration</b>: when it says 0.8, it should be right about 80% of the time (across many predictions).</li>
+          <li>No fine-tuning. You shape it with <b>criteria</b> in the request.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Question types</h3>
+        <p><code>noul</code> <span class="small muted">yes/no → probability 0 to 1</span></p>
+        <p><code>choice</code> <span class="small muted">one of N options → pick, confidence, probability per option</span></p>
+        <p><code>score</code> <span class="small muted">a value on your scale</span></p>
+        <p class="small muted" style="margin-top:.5em">It can only answer with an option you defined. Hallucinating a format isn't on the menu.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11. The API call -->
+  <section class="slide">
+    <div class="kicker">How the call works</div>
+    <h2>State in, typed answers out</h2>
+    <p class="small muted"><code>POST https://openrouter.ai/api/alpha/decisions</code> · model <code>typesafe/jev-1.13</code></p>
+    <div class="cols">
+      <pre><span class="c">// request (trimmed)</span>
+{
+  <span class="s">"model"</span>: <span class="s">"typesafe/jev-1.13"</span>,
+  <span class="s">"state"</span>: {
+    <span class="s">"title"</span>: <span class="s">"ZERO-OIL Pressure Cooker Rajma Chawal…"</span>,
+    <span class="s">"description"</span>: <span class="s">"…"</span>
+  },
+  <span class="s">"questions"</span>: {
+    <span class="s">"meal_dinner"</span>: {
+      <span class="s">"type"</span>: <span class="s">"noul"</span>,
+      <span class="s">"instructions"</span>: <span class="s">"Is the dish commonly served as dinner?"</span>,
+      <span class="s">"criteria"</span>: { <span class="s">"true"</span>: <span class="s">"A main evening meal…"</span>, <span class="s">"false"</span>: <span class="s">"…"</span> }
+    },
+    <span class="c">/* meal_breakfast, meal_lunch, … */</span>
+    <span class="s">"cuisine"</span>: {
+      <span class="s">"type"</span>: <span class="s">"choice"</span>,
+      <span class="s">"instructions"</span>: <span class="s">"Which cuisine? Choose unclear…"</span>,
+      <span class="s">"criteria"</span>: { <span class="s">"Indian"</span>: <span class="s">"…"</span>, <span class="s">"Italian"</span>: <span class="s">"…"</span>, <span class="s">"unclear"</span>: <span class="s">"…"</span> }
+    }
+  }
+}</pre>
+      <pre><span class="c">// response (real values, trimmed)</span>
+{
+  <span class="s">"answers"</span>: {
+    <span class="s">"meal_breakfast"</span>: { <span class="s">"type"</span>: <span class="s">"noul"</span>, <span class="s">"noul"</span>: <span class="n">0.06</span> },
+    <span class="s">"meal_lunch"</span>:     { <span class="s">"type"</span>: <span class="s">"noul"</span>, <span class="s">"noul"</span>: <span class="n">0.83</span> },
+    <span class="s">"meal_dinner"</span>:    { <span class="s">"type"</span>: <span class="s">"noul"</span>, <span class="s">"noul"</span>: <span class="n">0.87</span> },
+    <span class="s">"meal_snack"</span>:     { <span class="s">"type"</span>: <span class="s">"noul"</span>, <span class="s">"noul"</span>: <span class="n">0.03</span> },
+    <span class="s">"meal_dessert"</span>:   { <span class="s">"type"</span>: <span class="s">"noul"</span>, <span class="s">"noul"</span>: <span class="n">0.02</span> },
+    <span class="s">"cuisine"</span>: {
+      <span class="s">"type"</span>: <span class="s">"choice"</span>,
+      <span class="s">"choice"</span>: <span class="s">"Indian"</span>,
+      <span class="s">"confidence"</span>: <span class="n">1.0</span>,
+      <span class="s">"probabilities"</span>: { <span class="s">"Indian"</span>: <span class="n">1.0</span>, <span class="s">"Italian"</span>: <span class="n">0</span>, … }
+    }
+  },
+  <span class="s">"usage"</span>: { … }  <span class="c">// ~$0.00009 per recipe on average</span>
+}</pre>
+    </div>
+    <p class="small">Regex said <code>mealTypes: []</code>. Jev said lunch + dinner. <span class="good">No parsing, no prompt begging.</span></p>
+  </section>
+
+  <!-- 12. In the repo -->
+  <section class="slide">
+    <div class="kicker">How it works in the repo</div>
+    <h2>Jev first, regex as the safety net</h2>
+    <div class="flow">
+      <div class="box"><b>1. Corrections</b><code>catalog-overrides.json</code> always wins. Jev only gets asked what's still open.</div>
+      <div class="arrow">→</div>
+      <div class="box"><b>2. Cache</b>Keyed by content hash + classifier version + model. Only new or edited videos are sent.</div>
+      <div class="arrow">→</div>
+      <div class="box"><b>3. Jev</b>One request per recipe, both question sets, 4 at a time, retries with backoff.</div>
+      <div class="arrow">→</div>
+      <div class="box"><b>4. Threshold 0.7</b>Keep meal labels ≥ 0.7. Keep cuisine pick ≥ 0.7. Confident <code>unclear</code> stays null.</div>
+      <div class="arrow">→</div>
+      <div class="box"><b>5. Fallback</b>Jev unsure or down? Use the regex answer.</div>
+    </div>
+    <div class="cols" style="margin-top:.9em">
+      <pre><span class="c">// classification-taxonomy.ts</span>
+<span class="k">export const</span> MEAL_TYPE_DESCRIPTIONS = {
+  breakfast: <span class="s">"Typically eaten in the morning…"</span>,
+  dinner: <span class="s">"A main evening meal, such as curries…"</span>,
+  drink: <span class="s">"A beverage that is drunk, such as tea…"</span>,
+  <span class="c">// …</span>
+} <span class="k">as const satisfies</span> Record&lt;MealType, string&gt;;</pre>
+      <ul class="small">
+        <li>The criteria are typed: add a meal type without a description and it won't compile.</li>
+        <li>Why <code>noul</code> per meal type? A recipe can be lunch <i>and</i> dinner. Cuisine is one <code>choice</code>.</li>
+        <li>Why 0.7? A live smoke test showed correct labels landing around 0.72 to 0.84. 0.8 threw most away.</li>
+        <li>All probabilities are cached, so the threshold can change without re-calling Jev.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 13. Results -->
+  <section class="slide">
+    <div class="kicker">Did it work?</div>
+    <h2>First full run</h2>
+    <div class="stats">
+      <div class="stat"><b>2,036</b><span>recipes, one Jev call each</span></div>
+      <div class="stat"><b>0</b><span>failed calls (1 retry)</span></div>
+      <div class="stat"><b>203 ms</b><span>p50 latency (p95: 274 ms)</span></div>
+      <div class="stat"><b>$0.18</b><span>total cost for the whole catalog</span></div>
+    </div>
+    <div class="cols" style="margin-top:1em">
+      <div class="card">
+        <h3>Today (12 runs, 2,082 recipes)</h3>
+        <p><b class="gold">$0.19</b> all-time Jev spend. Thanks to caching, a refresh is ~5 calls.</p>
+        <p><b class="gold">84%</b> of meal types and <b class="gold">90%</b> of cuisines decided by Jev.</p>
+        <p>Jev overruled regex on <b class="gold">1,084</b> meal labels and <b class="gold">389</b> cuisines.</p>
+      </div>
+      <div class="card">
+        <h3>Jev's top confidence per recipe</h3>
+        <div class="bar"><span>Meal 0.9+</span><i style="width:34%"></i><span>711</span></div>
+        <div class="bar"><span>Meal 0.7-0.9</span><i style="width:50%"></i><span>1,042</span></div>
+        <div class="bar"><span>Meal &lt; 0.7</span><i style="width:16%"></i><span>329</span></div>
+        <div class="bar"><span>Cuisine 0.9+</span><i class="c" style="width:80%"></i><span>1,664</span></div>
+        <div class="bar"><span>Cuisine 0.7-0.9</span><i class="c" style="width:10%"></i><span>200</span></div>
+        <div class="bar"><span>Cuisine &lt; 0.7</span><i class="c" style="width:10%"></i><span>218</span></div>
+      </div>
+    </div>
+    <p class="small muted">Every run publishes a report to the site's <code>/stats</code> page: who decided each label, borderline calls, cost, latency.</p>
+  </section>
+
+  <!-- 14. Examples -->
+  <section class="slide">
+    <div class="kicker">Where Jev beat the regex</div>
+    <h2>A few favorites</h2>
+    <table>
+      <tr><th>Recipe</th><th>Regex said</th><th>Jev said</th></tr>
+      <tr><td>Pressure Cooker Rajma Chawal</td><td class="bad">no meal type</td><td class="good">lunch 0.83 · dinner 0.87</td></tr>
+      <tr><td>Kadhi Chawal in 15 Minutes</td><td class="bad">no meal type</td><td class="good">lunch 0.78 · dinner 0.82</td></tr>
+      <tr><td>Ghee Mysore Pak</td><td class="bad">no meal type, no cuisine</td><td class="good">dessert 0.98 · Indian 1.0</td></tr>
+      <tr><td>Zero Sugar Chocolate Walnut Mithai</td><td class="bad">no cuisine</td><td class="good">dessert 0.98 · snack 0.77 · Indian 1.0</td></tr>
+      <tr><td>Gujarati Green Moong Dal</td><td>dinner</td><td class="good">lunch 0.75 · dinner 0.91</td></tr>
+    </table>
+    <p class="small muted" style="margin-top:.6em">And when it isn't sure, it says so. 134 recipes are confidently "unclear" for cuisine instead of a guess.</p>
+  </section>
+
+  <!-- 15. Takeaways -->
+  <section class="slide">
+    <div class="kicker">Takeaways</div>
+    <h2>What I'd tell a customer</h2>
+    <ul>
+      <li><b>Match the model to the shape of the question.</b> Generating text and making a decision are different jobs.</li>
+      <li><b>Typed outputs beat parsing prose.</b> If your code is stripping code fences, something is off.</li>
+      <li><b>Real probabilities make thresholds possible.</b> Your code decides how sure is sure enough, and what happens otherwise.</li>
+      <li><b>Keep a deterministic fallback, a cache, and a scoreboard.</b> The regex didn't die, it got promoted to safety net.</li>
+      <li><b>Copilot made the detours cheap.</b> Trying three approaches took days, not weeks.</li>
+    </ul>
+  </section>
+
+  <!-- 16. Thanks -->
+  <section class="slide" style="align-items:center;text-align:center">
+    <span class="wheel">🎡</span>
+    <h1>Spin it</h1>
+    <p class="big"><a class="accent" href="https://sumildesai.github.io/recipe-roulette/">sumildesai.github.io/recipe-roulette</a></p>
+    <p class="muted">See how Jev sorted everything at <a class="gold" href="https://sumildesai.github.io/recipe-roulette/stats/">/stats</a></p>
+    <p class="muted small">Questions? Dinner suggestions?</p>
+  </section>
+
+</main>
+<div class="chrome">
+  <button id="prev" aria-label="Previous slide">←</button>
+  <span id="counter"></span>
+  <button id="next" aria-label="Next slide">→</button>
+</div>
+<script>
+  const slides = [...document.querySelectorAll(".slide")];
+  const counter = document.getElementById("counter");
+  const progress = document.getElementById("progress");
+  let current = 0;
+  function show(index) {
+    current = Math.max(0, Math.min(slides.length - 1, index));
+    slides.forEach((slide, i) => slide.classList.toggle("active", i === current));
+    counter.textContent = `${current + 1} / ${slides.length}`;
+    progress.style.transform = `scaleX(${(current + 1) / slides.length})`;
+    history.replaceState(null, "", `#${current + 1}`);
+  }
+  document.addEventListener("keydown", (event) => {
+    if (["ArrowRight", "PageDown", " ", "Enter"].includes(event.key)) { event.preventDefault(); show(current + 1); }
+    if (["ArrowLeft", "PageUp", "Backspace"].includes(event.key)) { event.preventDefault(); show(current - 1); }
+    if (event.key === "Home") show(0);
+    if (event.key === "End") show(slides.length - 1);
+  });
+  document.getElementById("prev").addEventListener("click", () => show(current - 1));
+  document.getElementById("next").addEventListener("click", () => show(current + 1));
+  const deck = document.getElementById("deck");
+  const fit = () => deck.style.setProperty("--scale", Math.min(innerWidth / 1600, innerHeight / 900));
+  addEventListener("resize", fit);
+  fit();
+  show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+</script>
+</body>
+</html>
